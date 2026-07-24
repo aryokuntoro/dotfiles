@@ -1,25 +1,25 @@
 ! ── Xresources ────────────────────────────────────────────────
 ! Colors set by apply-theme-colors.sh from the active rofi .rasi theme
 ! COLORS-START
-*.background:  #282828
-*.foreground:  #ebdbb2
-*.cursorColor: #ebdbb2
-*.color0:      #282828
-*.color8:      #1d2021
-*.color1:      #fb4934
-*.color9:      #fb4934
-*.color2:      #b8bb26
-*.color10:     #b8bb26
-*.color3:      #fabd2f
-*.color11:     #fabd2f
-*.color4:      #83a598
-*.color12:     #83a598
-*.color5:      #d3869b
-*.color13:     #d3869b
-*.color6:      #8ec07c
-*.color14:     #8ec07c
-*.color7:      #a89984
-*.color15:     #ebdbb2
+*.background:  #1e1e2e
+*.foreground:  #cdd6f4
+*.cursorColor: #cdd6f4
+*.color0:      #1e1e2e
+*.color8:      #181825
+*.color1:      #f38ba8
+*.color9:      #f38ba8
+*.color2:      #a6e3a1
+*.color10:     #a6e3a1
+*.color3:      #f9e2af
+*.color11:     #f9e2af
+*.color4:      #89b4fa
+*.color12:     #89b4fa
+*.color5:      #cba6f7
+*.color13:     #cba6f7
+*.color6:      #94e2d5
+*.color14:     #94e2d5
+*.color7:      #a6adc8
+*.color15:     #cdd6f4
 ! COLORS-END
 
 ! ── URxvt ──────────────────────────────────────────────────────
@@ -35,12 +35,9 @@ URxvt.saveLines: 10000
 URxvt.cursorBlink: true
 URxvt.cursorUnderline: false
 URxvt.depth: 32
-URxvt.background: [0]#282828
-URxvt.foreground: #ebdbb2
 URxvt.transparent: false
 URxvt.shading: 0
 URxvt.fading: 0
-URxvt.fadeColor: #282828
 URxvt.perl-ext-common: default,clipboard,selection
 URxvt.clipboard.autocopy: true
 URxvt.clipboard.cmd: xclip -selection clipboard
