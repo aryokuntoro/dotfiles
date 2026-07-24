@@ -1,0 +1,15 @@
+[Default Applications]
+x-scheme-handler/claude-cli=claude-code-url-handler.desktop
+text/plain=vim-kitty.desktop
+inode/directory=thunar.desktop
+application/x-iso9660-image=mount-image.desktop
+application/x-cd-image=mount-image.desktop
+application/x-raw-disk-image=mount-image.desktop
+application/zip=xarchiver.desktop
+application/x-zerosize=vim-kitty.desktop
+
+[Added Associations]
+text/plain=vim-kitty.desktop;vim.desktop;
+application/zip=xarchiver.desktop;
+application/x-zerosize=vim-kitty.desktop;vim.desktop;
+image/png=feh.desktop;

@@ -1,0 +1,65 @@
+! ── Xresources ────────────────────────────────────────────────
+! Colors set by apply-theme-colors.sh from the active rofi .rasi theme
+! COLORS-START
+*.background:  #282828
+*.foreground:  #ebdbb2
+*.cursorColor: #ebdbb2
+*.color0:      #282828
+*.color8:      #1d2021
+*.color1:      #fb4934
+*.color9:      #fb4934
+*.color2:      #b8bb26
+*.color10:     #b8bb26
+*.color3:      #fabd2f
+*.color11:     #fabd2f
+*.color4:      #83a598
+*.color12:     #83a598
+*.color5:      #d3869b
+*.color13:     #d3869b
+*.color6:      #8ec07c
+*.color14:     #8ec07c
+*.color7:      #a89984
+*.color15:     #ebdbb2
+! COLORS-END
+
+! ── URxvt ──────────────────────────────────────────────────────
+URxvt.font: xft:JetBrainsMono Nerd Font:size=12
+URxvt.letterSpace: 0
+URxvt.lineSpace: 0
+URxvt.geometry: 90x24
+URxvt.scrollBar: false
+URxvt.scrollBar_right: false
+URxvt.scrollBar_floating: false
+URxvt.scrollstyle: rxvt
+URxvt.saveLines: 10000
+URxvt.cursorBlink: true
+URxvt.cursorUnderline: false
+URxvt.depth: 32
+URxvt.background: [0]#282828
+URxvt.foreground: #ebdbb2
+URxvt.transparent: false
+URxvt.shading: 0
+URxvt.fading: 0
+URxvt.fadeColor: #282828
+URxvt.perl-ext-common: default,clipboard,selection
+URxvt.clipboard.autocopy: true
+URxvt.clipboard.cmd: xclip -selection clipboard
+URxvt.keysym.C-c: perl:clipboard:copy
+URxvt.keysym.C-v: perl:clipboard:paste
+URxvt.keysym.C-S-V: perl:clipboard:paste
+
+! ── Xcursor ────────────────────────────────────────────────────
+Xcursor.theme: Bibata-Modern-Classic
+Xcursor.size: 24
+
+! ── Xft ────────────────────────────────────────────────────────
+Xft.dpi: 96
+Xft.antialias: true
+Xft.hinting: true
+Xft.rgba: rgb
+Xft.autohint: false
+Xft.hintstyle: hintslight
+Xft.lcdfilter: lcddefault
+
+! ── Emacs ──────────────────────────────────────────────────────
+Emacs.font: JetBrainsMono Nerd Font 12

@@ -1,6 +1,8 @@
 # dotfiles
 
-i3 + polybar + rofi + dunst + Thunar config for Arch Linux.
+i3 + polybar + rofi + dunst + Thunar config for Arch Linux, plus
+picom, kitty, GTK/Qt theming, and the rest of the desktop session
+(`.xinitrc`, `.Xresources`).
 
 ## Install
 
@@ -11,8 +13,30 @@ cd ~/Projects/dotfiles
 ```
 
 `install.sh` symlinks each `config/<app>/` here to `~/.config/<app>`,
+and each file under `home/` to `~/.<file>` (`.xinitrc`, `.Xresources`),
 backing up anything already there to `~/.config-backup-<timestamp>/`
 first. Safe to re-run.
+
+Deliberately **not** included: browser profiles (`chromium`, `mozilla`
+-- cache/cookies/session data, not portable config), `gh` (holds your
+GitHub OAuth token), `dconf`/`pulse` (binary runtime state), and
+`libreoffice` (app cache/registry, not meaningful config). pywal's own
+`~/.config/wal` was empty on the source machine (no custom colorschemes
+or templates authored), so there's nothing there to ship either --
+color generation happens through `pywal-reload.sh`/`apply-theme-colors.sh`
+in `config/i3/scripts/`, not through wal's own config dir.
+
+A few small app configs (`qt5ct.conf`, `qt6ct.conf`, `uad/config.toml`,
+`greenclip.toml`) have the source machine's absolute home path baked
+into one or two settings (a color-scheme file path, a cache-file path).
+Not portable if your username differs, but harmless -- worst case that
+one setting resets to the app's default until you repoint it.
+
+`config/uad` is Universal Android Debloater's config -- there's no
+package for it on the source machine either (no pacman/AUR entry, it
+wasn't in `$PATH`), so it was presumably run as a standalone binary/
+AppImage at some point. The config is here for reference; you'll need
+to get the binary yourself if you actually use it.
 
 After installing, log out and back in (so i3/polybar/dunst pick up
 the new configs from a fresh session), then run `~/.config/i3/scripts/theme-switch.sh`
@@ -26,18 +50,19 @@ from, not a fixed default).
 ### Official repos (`pacman -S`)
 
 ```
-i3-wm polybar rofi dunst
+i3-wm polybar rofi dunst picom
 thunar thunar-archive-plugin thunar-media-tags-plugin thunar-shares-plugin thunar-volman
-playerctl ddcutil flatpak xdotool slop ffmpeg xclip feh xorg-xrandr vim
+playerctl ddcutil flatpak xdotool slop ffmpeg xclip feh xorg-xrandr xorg-setxkbmap xorg-xset numlockx vim
 samba smbclient ufw networkmanager nm-connection-editor bluez bluez-utils
-kitty libpulse pavucontrol autorandr
+kitty libpulse pavucontrol autorandr qt5ct qt6ct btop mpv libqalculate xarchiver htop
+polkit-gnome autotiling udiskie firefox brightnessctl
 ttf-jetbrains-mono-nerd otf-font-awesome noto-fonts papirus-icon-theme
 ```
 
 ### AUR (`paru -S`, needs `paru` itself bootstrapped first -- see below)
 
 ```
-gtkhash-thunar edid-decode betterlockscreen i3lock-color python-pywal16
+gtkhash-thunar edid-decode betterlockscreen i3lock-color python-pywal16 greenclip bibata-cursor-theme
 ```
 
 ### Bootstrapping `paru`
@@ -109,6 +134,13 @@ Reboot Windows after either change.
   if the monitor supports DDC/CI over the connected cable (most do
   over HDMI/DisplayPort) and the machine can see it via
   `ddcutil detect`.
+- `i3/config`'s `XF86MonBrightnessUp`/`Down` keys still call
+  `brightnessctl` (laptop-panel backlight), left over from before this
+  was set up as a desktop with an external monitor -- those two keys
+  are effectively no-ops here. Not touched since it wasn't part of
+  what this repo was checked for; repoint them at
+  `polybar/scripts/backlight.sh up`/`down` if you want the physical
+  brightness keys to control the monitor via DDC/CI too.
 - All icon glyphs are Font Awesome, embedded in
   `ttf-jetbrains-mono-nerd` (that's the actual source of every glyph
   rendered in polybar/rofi) with `otf-font-awesome` as an explicit
