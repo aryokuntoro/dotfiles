@@ -33,22 +33,22 @@ hide_edge_borders smart
 
 # ── Color Scheme (set by theme-switch.sh from the active rofi theme) ──
 # COLORS-START
-set $bg         #282828
-set $bg-alt     #1d2021
-set $bg-hover   #3c3836
-set $bg-urgent  #fb4934
-set $fg         #ebdbb2
-set $fg-alt     #a89984
-set $fg-urgent  #282828
-set $accent     #fabd2f
-set $accent2    #fe8019
-set $red        #fb4934
-set $green      #b8bb26
-set $yellow     #fabd2f
-set $blue       #83a598
-set $purple     #d3869b
-set $aqua       #8ec07c
-set $orange     #fe8019
+set $bg         #1e1e2e
+set $bg-alt     #181825
+set $bg-hover   #313244
+set $bg-urgent  #f38ba8
+set $fg         #cdd6f4
+set $fg-alt     #a6adc8
+set $fg-urgent  #1e1e2e
+set $accent     #cba6f7
+set $accent2    #89b4fa
+set $red        #f38ba8
+set $green      #a6e3a1
+set $yellow     #f9e2af
+set $blue       #89b4fa
+set $purple     #cba6f7
+set $aqua       #94e2d5
+set $orange     #89b4fa
 # COLORS-END
 
 # ── Window Class Rules ─────────────────────────────────────────
