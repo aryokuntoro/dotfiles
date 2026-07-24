@@ -13,9 +13,19 @@ cd ~/Projects/dotfiles
 ```
 
 `install.sh` symlinks each `config/<app>/` here to `~/.config/<app>`,
-and each file under `home/` to `~/.<file>` (`.xinitrc`, `.Xresources`),
-backing up anything already there to `~/.config-backup-<timestamp>/`
-first. Safe to re-run.
+each file under `home/` to `~/.<file>` (`.xinitrc`, `.Xresources`,
+`.bashrc`, `.bash_profile`, `.gitconfig`), and each file under
+`config/applications/` individually into `~/.local/share/applications/`
+(that directory holds every installed app's launcher entries, so it
+gets per-file links rather than replacing the whole thing). Backs up
+anything already there to `~/.config-backup-<timestamp>/` first. Safe
+to re-run.
+
+`.gitconfig` only sets a credential helper delegating to `gh auth
+git-credential` -- no name/email is stored globally on the source
+machine either. Run `git config --global user.name`/`user.email`
+yourself on the new machine (and `gh auth login` if you haven't
+already).
 
 Deliberately **not** included: browser profiles (`chromium`, `mozilla`
 -- cache/cookies/session data, not portable config), `gh` (holds your
@@ -37,6 +47,13 @@ package for it on the source machine either (no pacman/AUR entry, it
 wasn't in `$PATH`), so it was presumably run as a standalone binary/
 AppImage at some point. The config is here for reference; you'll need
 to get the binary yourself if you actually use it.
+
+`config/applications/mount-image.desktop`'s `Exec=` line has the
+source machine's absolute path baked in (`.desktop` files don't expand
+`~`/`$HOME` in `Exec=`, unlike everything else here which resolves
+paths at runtime). If your username differs, double-clicking an ISO
+in Thunar won't find the script until you edit that line to match
+your actual home path.
 
 After installing, log out and back in (so i3/polybar/dunst pick up
 the new configs from a fresh session), then run `~/.config/i3/scripts/theme-switch.sh`

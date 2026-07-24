@@ -1,0 +1,10 @@
+[Desktop Entry]
+Name=Vim
+GenericName=Text Editor
+Comment=Edit text files with Vim in a kitty window
+Exec=kitty --title Vim -e vim %F
+Terminal=false
+Type=Application
+Icon=gvim
+Categories=Utility;TextEditor;
+MimeType=text/plain;text/x-log;application/x-shellscript;
