@@ -1,0 +1,146 @@
+/* ── Nord Dark ── minimal modern ── */
+* {
+    bg:           #2e3440;
+    bg-alt:       #242933;
+    bg-hover:     #3b4252;
+    fg:           #e5e9f0;
+    fg-alt:       #d8dee9;
+    accent:       #88c0d0;
+    accent2:      #81a1c1;
+    red:          #bf616a;
+    green:        #a3be8c;
+    yellow:       #ebcb8b;
+    blue:         #81a1c1;
+    purple:       #b48ead;
+    cyan:         #88c0d0;
+    orange:       #d08770;
+    border:       #88c0d0;
+    selected:     #3b4252;
+    urgent:       #bf616a;
+    transparent:  #00000000;
+
+    font: "JetBrainsMono Nerd Font 11";
+}
+
+window {
+    transparency: "real";
+    location: center;
+    anchor: center;
+    width: 32em;
+    border: 1px solid;
+    border-color: @border;
+    border-radius: 14px;
+    background-color: @bg;
+}
+
+mainbox {
+    background-color: @bg;
+    padding: 14px;
+    children: [ inputbar, message, listview ];
+}
+
+inputbar {
+    background-color: @bg-alt;
+    border-radius: 10px;
+    padding: 10px 14px;
+    spacing: 10px;
+    children: [ prompt, entry, case-indicator ];
+}
+
+prompt {
+    background-color: transparent;
+    text-color: @accent;
+}
+
+entry {
+    background-color: transparent;
+    text-color: @fg;
+    placeholder: "Search…";
+    placeholder-color: @fg-alt;
+}
+
+case-indicator {
+    enabled: false;
+}
+
+message {
+    background-color: @bg-alt;
+    border-radius: 10px;
+    padding: 10px 14px;
+    margin: 10px 0px 0px 0px;
+    children: [ textbox ];
+}
+textbox {
+    background-color: transparent;
+    text-color: @fg;
+}
+
+listview {
+    background-color: transparent;
+    padding: 10px 0px 0px 0px;
+    margin: 0px;
+    lines: 8;
+    columns: 1;
+    scrollbar: false;
+    spacing: 2px;
+    cycle: true;
+    fixed-height: false;
+}
+
+element {
+    background-color: transparent;
+    padding: 8px 10px;
+    border-radius: 8px;
+    spacing: 10px;
+    cursor: pointer;
+}
+element selected {
+    background-color: @selected;
+}
+
+element-icon {
+    background-color: transparent;
+    size: 18px;
+    cursor: inherit;
+}
+element-icon selected {
+    background-color: transparent;
+    text-color: @accent;
+}
+
+element-text {
+    background-color: transparent;
+    text-color: @fg;
+    cursor: inherit;
+    vertical-align: 0.5;
+}
+element-text selected {
+    background-color: transparent;
+    text-color: @accent;
+}
+
+scrollbar {
+    handle-color: @selected;
+    handle-width: 4px;
+    border-radius: 4px;
+    background-color: transparent;
+}
+
+sidebar {
+    background-color: transparent;
+    border: 1px 0px 0px 0px solid;
+    border-color: @bg-alt;
+    padding: 10px 0px 0px 0px;
+    margin: 10px 0px 0px 0px;
+}
+
+button {
+    padding: 6px 12px;
+    border-radius: 8px;
+    background-color: transparent;
+    text-color: @fg-alt;
+}
+button selected {
+    background-color: @bg-alt;
+    text-color: @accent;
+}

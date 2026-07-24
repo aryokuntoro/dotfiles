@@ -1,0 +1,103 @@
+# ── Dunst Notification Daemon ──────────────────────────────────
+# Colors set by theme-switch.sh from the active rofi theme
+
+[global]
+    monitor = 0
+    follow = mouse
+    width = 350
+    height = (0, 100)
+    origin = top-right
+    offset = (15, 40)
+    scale = 0
+    notification_limit = 5
+    progress_bar = true
+    progress_bar_height = 10
+    progress_bar_frame_width = 1
+    progress_bar_min_width = 150
+    progress_bar_max_width = 300
+    indicate_hidden = yes
+    transparency = 0
+    separator_height = 2
+    padding = 12
+    horizontal_padding = 12
+    text_icon_padding = 12
+    frame_width = 2
+    frame_color = "#fabd2f"
+    separator_color = frame
+    sort = yes
+    idle_threshold = 120
+    font = JetBrainsMono Nerd Font 11
+    line_height = 0
+    markup = full
+    format = "<b>%s</b>\n%b"
+    alignment = left
+    vertical_alignment = center
+    show_age_threshold = 60
+    sticky_history = yes
+    history_length = 20
+    always_run_script = true
+    corner_radius = 12
+    ignore_dbusclose = false
+    force_xinerama = false
+    mouse_left_click = close_current
+    mouse_middle_click = do_action
+    mouse_right_click = close_all
+
+    # ── Icons ──────────────────────────────────────────────────
+    icon_position = left
+    min_icon_size = 32
+    max_icon_size = 48
+    icon_path = /usr/share/icons/Papirus-Dark/32x32/status:/usr/share/icons/Papirus-Dark/32x32/devices:/usr/share/icons/Papirus-Dark/32x32/apps
+
+    # ── Colors (set by theme-switch.sh) ────────────────────────
+    background = "#282828"
+    foreground = "#ebdbb2"
+
+[urgency_low]
+    background = "#282828"
+    foreground = "#ebdbb2"
+    timeout = 5
+    frame_color = "#83a598"
+
+[urgency_normal]
+    background = "#282828"
+    foreground = "#ebdbb2"
+    timeout = 10
+    frame_color = "#fabd2f"
+
+[urgency_critical]
+    background = "#fb4934"
+    foreground = "#282828"
+    timeout = 0
+    frame_color = "#fb4934"
+
+# ── Special Rules ──────────────────────────────────────────────
+[spotify]
+    appname = Spofity
+    icon = spotify
+    urgency = low
+
+[discord]
+    appname = Discord
+    icon = discord
+    urgency = normal
+
+[telegram]
+    appname = Telegram
+    icon = telegram
+    urgency = normal
+
+[recording]
+    summary = "Recording"
+    urgency = critical
+    timeout = 0
+
+[screenshot]
+    summary = "Screenshot"
+    urgency = low
+    timeout = 3
+
+[theme]
+    summary = "Theme"
+    urgency = normal
+    timeout = 3

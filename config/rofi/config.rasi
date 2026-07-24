@@ -1,0 +1,65 @@
+configuration {
+    modi: "drun,run,window,calc,emoji,clipboard:greenclip print,keys,filebrowser,ssh";
+    font: "JetBrainsMono Nerd Font 12";
+    show-icons: true;
+    icon-theme: "Papirus-Dark";
+    terminal: "kitty";
+    drun-display-format: "{name}";
+    window-format: "{w} · {c} · {t}";
+    cycle: true;
+    sidebar-mode: true;
+    eh: 1;
+    lines: 12;
+    columns: 2;
+    padding: 18;
+    fixed-num-lines: false;
+    scroll-method: 0;
+    show-match: false;
+    sort: true;
+    matching: "fuzzy";
+    tokenize: true;
+    normalize-match: true;
+    hide-scrollbar: true;
+    scroll-method: 1;
+    click-to-exit: true;
+    case-sensitive: false;
+    parse-hosts: true;
+    parse-known-hosts: true;
+    combi-modi: "drun,window,run";
+    matching-negate-char: '!';
+    window-combinate-name: true;
+
+    kb-primary-paste: "Control+V";
+    kb-secondary-paste: "Control+Shift+V";
+    kb-move-front: "Control+a";
+    kb-move-end: "Control+e";
+    kb-move-word-back: "Alt+b";
+    kb-move-word-forward: "Alt+f";
+    kb-move-char-back: "Left";
+    kb-move-char-forward: "Right";
+    kb-remove-word-back: "Control+Alt+h";
+    kb-remove-word-forward: "Control+Alt+d";
+    kb-remove-char-forward: "Delete";
+    kb-remove-char-back: "BackSpace";
+    kb-remove-to-eol: "Control+k";
+    kb-remove-to-sol: "Control+u";
+    kb-accept-entry: "Return";
+    kb-accept-custom: "Control+Return";
+    kb-accept-custom-alt: "Control+Shift+Return";
+    kb-accept-alt: "Shift+Return";
+    kb-delete-entry: "Shift+Delete";
+    kb-mode-next: "Shift+Right,Control+Tab";
+    kb-mode-previous: "Shift+Left,Control+Shift+Tab";
+    kb-row-left: "Control+Page_Up";
+    kb-row-right: "Control+Page_Down";
+    kb-row-up: "Up,Control+p";
+    kb-row-down: "Down,Control+n";
+    kb-row-first: "Home";
+    kb-row-last: "End";
+    kb-row-select: "Control+space";
+    kb-screenshot: "Alt+S";
+    kb-elt: "Alt+Tab";
+    kb-cancel: "Escape,Control+g";
+}
+
+@import "~/.config/rofi/themes/current.rasi"

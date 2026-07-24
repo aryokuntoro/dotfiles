@@ -1,0 +1,110 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<actions>
+ <action>
+    <icon>utilities-terminal</icon>
+    <name>Open Terminal Here</name>
+    <submenu></submenu>
+    <unique-id>1</unique-id>
+    <command>kitty</command>
+    <description>Open terminal in current directory</description>
+    <range></range>
+    <patterns>*</patterns>
+    <startup-notify/>
+    <directories/>
+  </action>
+  <action>
+    <icon>mpv</icon>
+    <name>Play in MPV</name>
+    <submenu></submenu>
+    <unique-id>2</unique-id>
+    <command>mpv %F</command>
+    <description>Play media file in MPV</description>
+    <range></range>
+    <patterns>*.mp4;*.mkv;*.avi;*.webm;*.mp3;*.flac;*.wav;*.m4a;*.ogg;*.mov</patterns>
+    <startup-notify/>
+    <audio-files/>
+    <video-files/>
+  </action>
+  <action>
+    <icon>image-x-generic</icon>
+    <name>Set as Wallpaper (feh)</name>
+    <submenu></submenu>
+    <unique-id>3</unique-id>
+    <command>feh --bg-scale %f</command>
+    <description>Set selected image as wallpaper</description>
+    <range></range>
+    <patterns>*.jpg;*.jpeg;*.png;*.webp</patterns>
+    <startup-notify/>
+    <image-files/>
+  </action>
+  <action>
+    <icon>edit-copy</icon>
+    <name>Copy Path</name>
+    <submenu></submenu>
+    <unique-id>5</unique-id>
+    <command>echo %f | xclip -selection clipboard</command>
+    <description>Copy file path to clipboard</description>
+    <range></range>
+    <patterns>*</patterns>
+    <startup-notify/>
+    <directories/>
+    <audio-files/>
+    <image-files/>
+    <other-files/>
+    <text-files/>
+    <video-files/>
+  </action>
+  <action>
+    <icon>media-optical</icon>
+    <name>Create ISO</name>
+    <submenu></submenu>
+    <unique-id>10</unique-id>
+    <command>/home/kiddo/.config/Thunar/scripts/create-iso.sh %F</command>
+    <description>Bundle the selected files/folders into a new ISO image</description>
+    <range></range>
+    <patterns>*</patterns>
+    <startup-notify/>
+    <directories/>
+    <audio-files/>
+    <image-files/>
+    <other-files/>
+    <text-files/>
+    <video-files/>
+  </action>
+  <action>
+    <icon>archive-extract</icon>
+    <name>Extract ISO</name>
+    <submenu></submenu>
+    <unique-id>11</unique-id>
+    <command>/home/kiddo/.config/Thunar/scripts/extract-iso.sh %F</command>
+    <description>Extract an ISO/IMG/UDF image to a writable folder (works with UDF images xarchiver can't open)</description>
+    <range></range>
+    <patterns>*.iso;*.img;*.udf;*.nrg;*.bin</patterns>
+    <startup-notify/>
+    <other-files/>
+  </action>
+  <action>
+    <icon>media-optical</icon>
+    <name>Mount Image</name>
+    <submenu></submenu>
+    <unique-id>8</unique-id>
+    <command>/home/kiddo/.config/Thunar/scripts/mount-image.sh %F</command>
+    <description>Mount an ISO/IMG/UDF disk image and open it in Thunar</description>
+    <range></range>
+    <patterns>*.iso;*.img;*.udf;*.nrg;*.bin</patterns>
+    <startup-notify/>
+    <other-files/>
+  </action>
+  <action>
+    <icon>media-eject</icon>
+    <name>Eject Image</name>
+    <submenu></submenu>
+    <unique-id>9</unique-id>
+    <command>/home/kiddo/.config/Thunar/scripts/eject-image.sh %F</command>
+    <description>Unmount and eject a mounted disk image</description>
+    <range></range>
+    <patterns>*.iso;*.img;*.udf;*.nrg;*.bin</patterns>
+    <startup-notify/>
+    <other-files/>
+  </action>
+</actions>
