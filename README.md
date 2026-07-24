@@ -12,14 +12,19 @@ cd ~/Projects/dotfiles
 ./install.sh
 ```
 
-`install.sh` symlinks each `config/<app>/` here to `~/.config/<app>`,
+`install.sh` copies each `config/<app>/` here to `~/.config/<app>`,
 each file under `home/` to `~/.<file>` (`.xinitrc`, `.Xresources`,
 `.bashrc`, `.bash_profile`, `.gitconfig`), and each file under
 `config/applications/` individually into `~/.local/share/applications/`
 (that directory holds every installed app's launcher entries, so it
-gets per-file links rather than replacing the whole thing). Backs up
+gets per-file copies rather than replacing the whole thing). Backs up
 anything already there to `~/.config-backup-<timestamp>/` first. Safe
 to re-run.
+
+These are plain copies, not symlinks -- editing a file under
+`~/.config` after install doesn't change anything in this repo. Edit
+the source here instead, then re-run `./install.sh` to push the
+change out to `$HOME`.
 
 `.gitconfig` only sets a credential helper delegating to `gh auth
 git-credential` -- no name/email is stored globally on the source
