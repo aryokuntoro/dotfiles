@@ -204,11 +204,11 @@ workspace $ws2 output primary
 workspace $ws3 output primary
 workspace $ws4 output primary
 workspace $ws5 output primary
-workspace $ws6 output HDMI-0
-workspace $ws7 output HDMI-0
-workspace $ws8 output HDMI-0
-workspace $ws9 output HDMI-0
-workspace $ws10 output HDMI-0
+workspace $ws6 output right
+workspace $ws7 output right
+workspace $ws8 output right
+workspace $ws9 output right
+workspace $ws10 output right
 
 # ── Scratchpad ─────────────────────────────────────────────────
 bindsym $mod+Shift+Return exec $terminal --class scratchpad -e tmux

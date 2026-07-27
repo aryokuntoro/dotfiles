@@ -105,6 +105,14 @@ Restart Windows setelahnya.
   semuanya, tanpa edit script.
 - `polybar/scripts/backlight.sh` ngatur brightness **monitor
   eksternal** lewat DDC/CI (`ddcutil`), bukan panel laptop.
+- `autorandr/default/` itu profile monitor spesifik mesin ini (fingerprint
+  EDID + layout HDMI-0 punya monitor ini) — bukan sesuatu yang portable
+  by design. Di mesin/monitor lain, profile ini gak bakal match (autostart
+  tetap jalan normal, cuma gak ada-apply apa-apa), jadi simpan profile
+  baru punya mesin itu sendiri: `autorandr --save <nama>` setelah xrandr
+  di-setup manual sesuai monitornya. Workspace 6-10 di `i3/config` pakai
+  `output right` (posisi relatif, bukan nama port) supaya routing ke
+  monitor kedua tetap jalan di hardware apa pun tanpa perlu diedit.
 - Tombol `XF86MonBrightnessUp`/`Down` di `i3/config` masih manggil
   `brightnessctl` (peninggalan setup laptop) — praktis no-op di setup
   desktop ini. Repoint ke `backlight.sh up`/`down` kalau mau tombol
