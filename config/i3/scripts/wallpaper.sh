@@ -32,6 +32,10 @@ if [ -n "$selected" ]; then
         feh --bg-scale "$wallpaper"
         echo "$wallpaper" > ~/.config/i3/current_wallpaper
 
+        # Keep the lock screen in sync -- takes ~10s to render all the
+        # effect variants, so background it instead of blocking here.
+        betterlockscreen -u "$wallpaper" >/dev/null 2>&1 &
+
         notify-send "  Wallpaper" "Changed to: $selected"
     fi
 fi

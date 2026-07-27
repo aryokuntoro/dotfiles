@@ -38,10 +38,16 @@ udiskie --tray &
 # Restores whatever wallpaper.sh last set (saved to current_wallpaper);
 # falls back to the default if nothing was ever picked.
 if [ -f ~/.config/i3/current_wallpaper ] && [ -f "$(cat ~/.config/i3/current_wallpaper)" ]; then
-    feh --bg-scale "$(cat ~/.config/i3/current_wallpaper)"
+    wallpaper="$(cat ~/.config/i3/current_wallpaper)"
 else
-    feh --bg-scale ~/Pictures/Wallpapers/wallpaper.jpg
+    wallpaper=~/Pictures/Wallpapers/wallpaper.jpg
 fi
+feh --bg-scale "$wallpaper"
+
+# wallpaper.sh keeps betterlockscreen's cache in sync on every change;
+# this only bootstraps it on a fresh install where it's never run yet
+# (~10s to render, so it's backgrounded either way).
+[ -d ~/.cache/betterlockscreen/current ] || betterlockscreen -u "$wallpaper" >/dev/null 2>&1 &
 
 # ── Set default rofi theme ────────────────────────────────────
 if [ ! -L ~/.config/rofi/themes/current.rasi ]; then
