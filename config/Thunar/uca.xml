@@ -107,4 +107,16 @@
     <startup-notify/>
     <other-files/>
   </action>
+  <action>
+    <icon>network-workgroup</icon>
+    <name>Connect to Server</name>
+    <submenu></submenu>
+    <unique-id>12</unique-id>
+    <command>/home/kiddo/.config/Thunar/scripts/gvfs-connect.sh</command>
+    <description>Mount an SMB, SFTP, FTP, WebDAV or NFS share via gvfs and open it in Thunar</description>
+    <range></range>
+    <patterns>*</patterns>
+    <startup-notify/>
+    <directories/>
+  </action>
 </actions>

@@ -22,6 +22,7 @@ exec_always --no-startup-id systemctl --user import-environment DISPLAY XAUTHORI
 exec_always --no-startup-id ~/.config/autostart/autostart.sh
 exec_always --no-startup-id feh --bg-scale ~/Pictures/Wallpapers/wallpaper.jpg
 exec --no-startup-id ~/.config/i3/scripts/init-workspaces.sh
+exec_always --no-startup-id numlockx
 
 # ── Gap & Borders ─────────────────────────────────────────────
 gaps inner 8
@@ -95,6 +96,7 @@ bindsym $mod+F3           exec ~/.config/i3/scripts/wallpaper.sh
 bindsym $mod+F4           exec ~/.config/i3/scripts/colorreload.sh
 bindsym $mod+F5           exec ~/.config/rofi/scripts/rofi-monitor.sh
 bindsym $mod+Shift+y      exec ~/.config/rofi/scripts/rofi-ytdlp.sh
+bindsym $mod+F6           exec ~/.config/Thunar/scripts/gvfs-connect.sh
 
 # ── Keybindings: Media ─────────────────────────────────────────
 bindsym XF86AudioPlay       exec playerctl play-pause
