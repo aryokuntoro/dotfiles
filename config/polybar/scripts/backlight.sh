@@ -18,6 +18,15 @@
 # from `ddcutil detect` instead, and only re-detect if the cached bus
 # stops responding (monitor moved to a different port, etc).
 #
+# --sleep-multiplier shrinks ddcutil's built-in inter-message delays
+# on top of that, and --disable-dynamic-sleep stops it from adaptively
+# re-lengthening those delays mid-session (that adaptive retuning was
+# still spiking calls back up to ~300ms even with a low multiplier).
+# 0.1 tested reliably on this monitor (20+ back-to-back get/set calls,
+# no dropped reads), giving a consistent ~100ms per call. Bump the
+# multiplier back up or drop --disable-dynamic-sleep if a different
+# monitor starts returning empty reads.
+#
 # Icon ramps with the current level (same idea as volume.sh) instead
 # of a single static glyph.
 
@@ -55,16 +64,16 @@ else
     fi
 
     case "$1" in
-    up) ddcutil --bus "$BUS" setvcp 10 + 5 >/dev/null 2>&1 ;;
-    down) ddcutil --bus "$BUS" setvcp 10 - 5 >/dev/null 2>&1 ;;
+    up) ddcutil --bus "$BUS" --disable-dynamic-sleep --sleep-multiplier 0.1 setvcp 10 + 5 >/dev/null 2>&1 ;;
+    down) ddcutil --bus "$BUS" --disable-dynamic-sleep --sleep-multiplier 0.1 setvcp 10 - 5 >/dev/null 2>&1 ;;
     esac
 
     current_percentage() {
-        read -r _ _ _ current max < <(ddcutil --bus "$BUS" getvcp 10 --brief 2>/dev/null)
+        read -r _ _ _ current max < <(ddcutil --bus "$BUS" --disable-dynamic-sleep --sleep-multiplier 0.1 getvcp 10 --brief 2>/dev/null)
         if [ -z "$current" ]; then
             BUS=$(detect_bus)
             [ -n "$BUS" ] && echo "$BUS" > "$BUS_CACHE"
-            read -r _ _ _ current max < <(ddcutil --bus "$BUS" getvcp 10 --brief 2>/dev/null)
+            read -r _ _ _ current max < <(ddcutil --bus "$BUS" --disable-dynamic-sleep --sleep-multiplier 0.1 getvcp 10 --brief 2>/dev/null)
         fi
         [ -z "$current" ] && return 1
         echo $((current * 100 / max))
