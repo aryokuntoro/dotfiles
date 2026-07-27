@@ -94,6 +94,7 @@ bindsym $mod+F2           exec $theme
 bindsym $mod+F3           exec ~/.config/i3/scripts/wallpaper.sh
 bindsym $mod+F4           exec ~/.config/i3/scripts/colorreload.sh
 bindsym $mod+F5           exec ~/.config/rofi/scripts/rofi-monitor.sh
+bindsym $mod+Shift+y      exec ~/.config/rofi/scripts/rofi-ytdlp.sh
 
 # ── Keybindings: Media ─────────────────────────────────────────
 bindsym XF86AudioPlay       exec playerctl play-pause
