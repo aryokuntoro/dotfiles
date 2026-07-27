@@ -1,0 +1,27 @@
+/* ── Wallpaper picker: current theme + big thumbnail grid ── */
+@import "current.rasi"
+
+window {
+    width: 60em;
+}
+
+listview {
+    columns: 3;
+    lines: 2;
+    spacing: 12px;
+}
+
+element {
+    orientation: vertical;
+    padding: 8px;
+}
+
+element-icon {
+    size: 160px;
+    horizontal-align: 0.5;
+}
+
+element-text {
+    horizontal-align: 0.5;
+    vertical-align: 0.5;
+}

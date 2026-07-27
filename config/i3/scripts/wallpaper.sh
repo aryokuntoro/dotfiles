@@ -11,16 +11,17 @@ if [ -z "$images" ]; then
     exit 1
 fi
 
-# Create display names
-displays=""
+# Create display entries with the image itself as the rofi icon, so
+# the picker shows an actual thumbnail per wallpaper instead of plain text.
+entries=""
 while IFS= read -r img; do
     name=$(basename "$img")
-    displays+="$name\n"
+    entries+="$name\x00icon\x1f$img\n"
 done <<< "$images"
 
 # Show rofi menu
-selected=$(echo -e "$displays" | rofi -dmenu -i -p "Wallpaper:" \
-    -theme ~/.config/rofi/themes/current.rasi -no-config)
+selected=$(echo -e "$entries" | rofi -dmenu -i -p "Wallpaper:" -show-icons \
+    -theme ~/.config/rofi/themes/wallpaper.rasi -no-config)
 
 if [ -n "$selected" ]; then
     # Find full path
