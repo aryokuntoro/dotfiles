@@ -18,6 +18,11 @@ cd ~/Projects/dotfiles
 ada di-backup dulu ke `~/.config-backup-<timestamp>/`. Aman dijalankan
 berkali-kali.
 
+Kalau repo ini sudah pernah di-clone sebelumnya: **`git pull` dulu,
+baru `./install.sh`** -- kebalik urutannya, `install.sh` cuma nyalin
+versi lama yang sudah ada di repo, jadi update terbaru gak kebawa ke
+`~/.config`.
+
 Karena ini copy, bukan symlink: edit dulu file sumber di repo ini,
 baru jalankan ulang `./install.sh` untuk mendorong perubahan ke
 `$HOME` — mengedit langsung di `~/.config` tidak akan tersimpan di
