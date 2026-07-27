@@ -28,6 +28,9 @@ autotiling &
 # ── Auto monitor detection ────────────────────────────────────
 autorandr --change &
 
+# ── Battery notifications (laptop-only, no-op if no battery) ──
+~/.config/polybar/scripts/battery-notify.sh &
+
 # ── USB automount ─────────────────────────────────────────────
 udiskie --tray &
 

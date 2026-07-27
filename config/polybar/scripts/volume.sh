@@ -5,12 +5,20 @@
 # be hooked to a real OSD-style notification (internal/pulseaudio
 # handles scroll itself with no hook for that).
 #
+# Icon ramps with the current level (muted/0%/low/mid/high) instead
+# of a single static glyph -- same idea as the battery module's
+# charging animation, just level-based since volume has no ongoing
+# "process" to animate over time.
+#
 # Run with no args to render the polybar line (used by `exec`).
 # Run with "up"/"down"/"mute" to adjust and pop a notification with a
 # progress bar (used by scroll-up/scroll-down/click-left).
 
-ICON_VOLUME=$'\U0000f028' # fa-volume_up
-ICON_MUTED=$'\U0000f026'  # fa-volume_off
+ICON_MUTED=$'\U0000f6a9'    # fa-volume-xmark
+ICON_OFF=$'\U0000f026'      # fa-volume-off (0%)
+ICON_LOW=$'\U0001f508'      # fa-volume-low
+ICON_MID=$'\U0001f509'      # fa-volume (medium)
+ICON_HIGH=$'\U0001f50a'     # fa-volume-high
 NOTIFY_ID=9992
 
 CONF="$HOME/.config/polybar/config.ini"
@@ -33,8 +41,17 @@ muted=$(pactl get-sink-mute @DEFAULT_SINK@ 2>/dev/null | grep -oP '(?<=Mute: )\w
 if [ "$muted" = "yes" ]; then
     icon="$ICON_MUTED"
     label="muted"
+elif [ "$percentage" -eq 0 ]; then
+    icon="$ICON_OFF"
+    label="${percentage}%"
+elif [ "$percentage" -le 33 ]; then
+    icon="$ICON_LOW"
+    label="${percentage}%"
+elif [ "$percentage" -le 66 ]; then
+    icon="$ICON_MID"
+    label="${percentage}%"
 else
-    icon="$ICON_VOLUME"
+    icon="$ICON_HIGH"
     label="${percentage}%"
 fi
 

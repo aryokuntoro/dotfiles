@@ -107,8 +107,20 @@ Restart Windows setelahnya.
 - Semua warna polybar/rofi dibaca langsung dari `config.ini`/`.rasi`
   aktif — ganti tema lewat `theme-switch.sh` otomatis mewarnai ulang
   semuanya, tanpa edit script.
-- `polybar/scripts/backlight.sh` ngatur brightness **monitor
-  eksternal** lewat DDC/CI (`ddcutil`), bukan panel laptop.
+- `polybar/scripts/backlight.sh` otomatis pilih jalur yang sesuai
+  hardware: kalau ada panel asli (`/sys/class/backlight` keisi, kasus
+  laptop) pakai `brightnessctl`, kalau enggak (kasus desktop ini) jatuh
+  ke DDC/CI (`ddcutil`) buat ngatur monitor eksternal langsung.
+- `[module/battery]` di `polybar/config.ini` sengaja gak dimasukkan ke
+  `modules-right` — module bawaan `internal/battery` polybar bisa
+  fatal error pas start kalau `battery`/`adapter` gak match device asli,
+  dan mesin ini gak punya baterai. Buat laptop: cek nama asli lewat
+  `ls /sys/class/power_supply/`, sesuaikan `battery`/`adapter` di
+  module-nya, baru tambahin `battery` ke `modules-right`. Icon-nya
+  animasi (mengisi) pas charging; notifikasi plug/unplug charger dan
+  baterai lemah (≤20%) dihandle terpisah lewat
+  `polybar/scripts/battery-notify.sh` (di-background dari
+  `autostart.sh`, langsung exit no-op kalau gak ada baterai).
 - `autorandr/default/` itu profile monitor spesifik mesin ini (fingerprint
   EDID + layout HDMI-0 punya monitor ini) — bukan sesuatu yang portable
   by design. Di mesin/monitor lain, profile ini gak bakal match (autostart
@@ -117,10 +129,12 @@ Restart Windows setelahnya.
   di-setup manual sesuai monitornya. Workspace 6-10 di `i3/config` pakai
   `output right` (posisi relatif, bukan nama port) supaya routing ke
   monitor kedua tetap jalan di hardware apa pun tanpa perlu diedit.
-- Tombol `XF86MonBrightnessUp`/`Down` di `i3/config` masih manggil
-  `brightnessctl` (peninggalan setup laptop) — praktis no-op di setup
-  desktop ini. Repoint ke `backlight.sh up`/`down` kalau mau tombol
-  fisik ngatur monitor eksternal.
+- Tombol `XF86MonBrightnessUp`/`Down` di `i3/config` manggil
+  `brightnessctl` langsung, jadi di laptop itu udah konsisten sama
+  jalur yang dipakai `backlight.sh`. Di desktop ini practically no-op
+  (gak ada panel buat `brightnessctl` atur) — repoint ke
+  `backlight.sh up`/`down` kalau mau tombol fisik ngatur monitor
+  eksternal lewat DDC/CI juga.
 - Semua ikon dari Font Awesome, sumbernya `ttf-jetbrains-mono-nerd`
   dengan `otf-font-awesome` sebagai fallback font.
 - `qt5ct.conf`, `qt6ct.conf`, `uad/config.toml`, `greenclip.toml`, dan
