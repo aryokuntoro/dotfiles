@@ -9,7 +9,7 @@ MONITORS=$(xrandr --query | grep " connected" | cut -d" " -f1)
 
 # Launch polybar on each monitor
 for MONITOR in $MONITORS; do
-    MONITOR=$MONITOR polybar -c ~/.config/polybar/config.ini main 2>/dev/null &
+    MONITOR=$MONITOR polybar -c ~/.config/polybar/config.ini main >/dev/null 2>&1 &
 done
 
 echo "Polybar launched on: $MONITORS"
