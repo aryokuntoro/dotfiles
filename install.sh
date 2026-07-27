@@ -40,8 +40,9 @@ copy_one() {
 }
 
 echo "==> Marking scripts executable"
-find "$REPO_DIR/config" -type f -path "*/scripts/*.sh" -exec chmod +x {} +
+find "$REPO_DIR/config" -type f -name "*.sh" -exec chmod +x {} +
 
+mkdir -p "$HOME/.config"
 for app_dir in "$REPO_DIR"/config/*/; do
     app="$(basename "$app_dir")"
     [ "$app" = "applications" ] && continue
