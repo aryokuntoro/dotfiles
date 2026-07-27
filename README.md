@@ -1,7 +1,6 @@
 # dotfiles
 
-Konfigurasi desktop Arch Linux: i3 + polybar + rofi + dunst + Thunar,
-plus picom, kitty, tema GTK/Qt, dan sisa sesi desktop (`.xinitrc`,
+Konfigurasi desktop Arch Linux: i3 + polybar + rofi + dunst + Thunar, picom, kitty, tema GTK/Qt, dan sisa sesi desktop (`.xinitrc`,
 `.Xresources`).
 
 ## Install
