@@ -5,13 +5,13 @@
 dir="~/.config/rofi/icons"
 confirm_exit="confirm"
 
-# Options (Font Awesome glyphs)
-shutdown=$'  Shutdown'
-reboot=$'  Reboot'
-lock=$'  Lock'
-suspend=$'  Suspend'
-logout=$'  Logout'
-hibernate=$'  Hibernate'
+# Options -- icon glyphs only, no text label
+shutdown=$''
+reboot=$''
+lock=$''
+suspend=$''
+logout=$''
+hibernate=$''
 
 # Variable passed to rofi
 options="$shutdown\n$reboot\n$lock\n$suspend\n$hibernate\n$logout"
@@ -19,27 +19,26 @@ options="$shutdown\n$reboot\n$lock\n$suspend\n$hibernate\n$logout"
 selected="$(echo -e "$options" | rofi -dmenu \
     -i \
     -p "Power Menu:" \
-    -theme ~/.config/rofi/themes/current.rasi \
-    -no-config \
-    -lines 6)"
+    -theme ~/.config/rofi/themes/powermenu.rasi \
+    -no-config)"
 
-case $selected in
-    *Shutdown*)
+case "$selected" in
+    "$shutdown")
         systemctl poweroff
         ;;
-    *Reboot*)
+    "$reboot")
         systemctl reboot
         ;;
-    *Lock*)
+    "$lock")
         betterlockscreen -l dim
         ;;
-    *Suspend*)
+    "$suspend")
         systemctl suspend
         ;;
-    *Hibernate*)
+    "$hibernate")
         systemctl hibernate
         ;;
-    *Logout*)
+    "$logout")
         i3-msg exit
         ;;
 esac
