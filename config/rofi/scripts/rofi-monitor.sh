@@ -132,6 +132,14 @@ apply() {
     notify-send "  Monitor" "$1"
     autorandr --save "$profile_name" >/dev/null 2>&1
     ~/.config/polybar/launch.sh >/dev/null 2>&1
+
+    # Cached lock screen images are rendered for whatever
+    # resolution/layout was active at the time -- regenerate them for
+    # the new one so betterlockscreen doesn't show a stretched/stale
+    # image. Backgrounded since it takes ~10s.
+    if [ -f ~/.config/i3/current_wallpaper ] && [ -f "$(cat ~/.config/i3/current_wallpaper)" ]; then
+        betterlockscreen -u "$(cat ~/.config/i3/current_wallpaper)" >/dev/null 2>&1 &
+    fi
 }
 
 # ── Submenus ──────────────────────────────────────────────────────

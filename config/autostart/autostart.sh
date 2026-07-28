@@ -16,9 +16,6 @@ picom -b --config ~/.config/picom/picom.conf &
 # ── Notifications ──────────────────────────────────────────────
 dunst -config ~/.config/dunst/dunstrc &
 
-# ── Status Bar ────────────────────────────────────────────────
-~/.config/polybar/launch.sh &
-
 # ── Clipboard Manager ─────────────────────────────────────────
 greenclip daemon &
 
@@ -26,7 +23,15 @@ greenclip daemon &
 autotiling &
 
 # ── Auto monitor detection ────────────────────────────────────
-autorandr --change &
+# Runs (and finishes) before the status bar so polybar's own monitor
+# detection in launch.sh sees the final, restored layout -- both
+# backgrounded would race, and polybar could start splitting
+# workspaces for whatever layout X happened to auto-configure instead
+# of the one autorandr is about to apply.
+autorandr --change
+
+# ── Status Bar ────────────────────────────────────────────────
+~/.config/polybar/launch.sh &
 
 # ── Battery notifications (laptop-only, no-op if no battery) ──
 ~/.config/polybar/scripts/battery-notify.sh &
