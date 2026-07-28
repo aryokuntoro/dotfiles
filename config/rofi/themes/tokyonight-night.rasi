@@ -95,7 +95,7 @@ element {
     cursor: pointer;
 }
 element selected {
-    background-color: @selected;
+    background-color: @accent;
 }
 
 element-icon {
@@ -116,7 +116,7 @@ element-text {
 }
 element-text selected {
     background-color: transparent;
-    text-color: @accent;
+    text-color: @bg;
 }
 
 scrollbar {
