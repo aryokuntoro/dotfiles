@@ -20,8 +20,9 @@ xset dpms 600 600 600
 # Screen blanking
 xset s 600 600
 
-# Numlock
-numlockx on &
+# Numlock (delayed: on cold boot the X server can still be finishing
+# keyboard device init here, which makes an immediate `numlockx on` a no-op)
+( sleep 1; numlockx on ) &
 
 # Qt apps: use qt5ct/qt6ct for theming (qt6ct's plugin also answers to
 # the "qt5ct" key, so one variable covers both Qt5 and Qt6 apps)
