@@ -20,9 +20,19 @@ xset dpms 600 600 600
 # Screen blanking
 xset s 600 600
 
-# Numlock (delayed: on cold boot the X server can still be finishing
-# keyboard device init here, which makes an immediate `numlockx on` a no-op)
-( sleep 1; numlockx on ) &
+# Numlock (retried: on cold boot the X server can still be finishing
+# keyboard device init right after start, which makes an immediate
+# `numlockx on` a no-op -- and how long that takes varies with system
+# load, so a single fixed sleep sometimes still loses the race. Poll
+# `xset q`'s actual indicator state instead of guessing a delay, and
+# keep retrying `numlockx on` until it reports on or we give up.
+(
+    for _ in $(seq 1 10); do
+        sleep 0.5
+        xset q | grep -qE "Num Lock:[[:space:]]*on" && break
+        numlockx on
+    done
+) &
 
 # NVIDIA sends Full range (0-255) RGB by default. HDMI-0 here is a TV
 # rather than a real PC monitor and washes out/crushes blacks under
