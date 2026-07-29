@@ -29,7 +29,11 @@ xset s 600 600
 # Full range, so force Limited (16-235) -- what TVs actually expect
 # over HDMI. No-ops harmlessly on a machine without nvidia-settings or
 # without an HDMI-0 output.
-command -v nvidia-settings >/dev/null 2>&1 && nvidia-settings -a "[HDMI-0]/ColorRange=1" >/dev/null 2>&1
+# Delayed (like numlockx above): right after X starts, the NVIDIA
+# driver is still repeatedly probing/mode-setting the TV over HDMI for
+# a couple seconds, and a ColorRange set during that window gets
+# silently reset once probing settles. Give it a few seconds first.
+( sleep 3; command -v nvidia-settings >/dev/null 2>&1 && nvidia-settings -a "[HDMI-0]/ColorRange=1" >/dev/null 2>&1 ) &
 
 # Qt apps: use qt5ct/qt6ct for theming (qt6ct's plugin also answers to
 # the "qt5ct" key, so one variable covers both Qt5 and Qt6 apps)
