@@ -24,6 +24,13 @@ xset s 600 600
 # keyboard device init here, which makes an immediate `numlockx on` a no-op)
 ( sleep 1; numlockx on ) &
 
+# NVIDIA sends Full range (0-255) RGB by default. HDMI-0 here is a TV
+# rather than a real PC monitor and washes out/crushes blacks under
+# Full range, so force Limited (16-235) -- what TVs actually expect
+# over HDMI. No-ops harmlessly on a machine without nvidia-settings or
+# without an HDMI-0 output.
+command -v nvidia-settings >/dev/null 2>&1 && nvidia-settings -a "[HDMI-0]/ColorRange=1" >/dev/null 2>&1
+
 # Qt apps: use qt5ct/qt6ct for theming (qt6ct's plugin also answers to
 # the "qt5ct" key, so one variable covers both Qt5 and Qt6 apps)
 export QT_QPA_PLATFORMTHEME=qt5ct

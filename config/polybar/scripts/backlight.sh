@@ -27,6 +27,24 @@
 # multiplier back up or drop --disable-dynamic-sleep if a different
 # monitor starts returning empty reads.
 #
+# Some "monitors" (e.g. a TV plugged in over HDMI) show up in `ddcutil
+# detect` with a real I2C bus but don't actually implement DDC/CI --
+# every getvcp/setvcp against them fails with EIO, and ddcutil logs
+# that failure straight to the journal via syslog regardless of shell
+# redirection, so retrying every poll floods the journal forever. Once
+# getvcp comes back empty even after a fresh bus re-detect, we assume
+# this display will never support DDC/CI, cache that verdict, and skip
+# calling ddcutil entirely from then on. Delete UNSUPPORTED_CACHE to
+# force a re-check (e.g. after swapping in an actual monitor).
+#
+# Once that verdict is cached there's no hardware lever left to pull,
+# so brightness falls back to RandR's per-output gamma scale (`xrandr
+# --brightness`) instead. That's a software darken of the rendered
+# pixels, not real backlight control -- it works on literally any
+# RandR output regardless of what the display supports -- so it's the
+# last resort, not the first choice. Floored at MIN_PCT because gamma
+# scaling much below that makes text unreadable rather than "dim".
+#
 # Icon ramps with the current level (same idea as volume.sh) instead
 # of a single static glyph.
 
@@ -36,6 +54,7 @@ ICON_3=$'\U000f00de' # md-brightness_5 (51-75%)
 ICON_4=$'\U000f00e0' # md-brightness_7 (76-100%)
 NOTIFY_ID=9991
 BUS_CACHE="$HOME/.cache/ddcutil-bus"
+UNSUPPORTED_CACHE="$HOME/.cache/ddcutil-unsupported"
 
 CONF="$HOME/.config/polybar/config.ini"
 color() { grep -m1 "^$1 = " "$CONF" | sed 's/^[a-z-]* = //'; }
@@ -53,10 +72,30 @@ if [ -n "$PANEL" ]; then
     current_percentage() {
         brightnessctl -d "$PANEL" -m 2>/dev/null | awk -F, '{print $4}' | tr -d '%'
     }
+elif [ -f "$UNSUPPORTED_CACHE" ]; then
+    XRANDR_OUTPUT=$(xrandr --query | awk '/ connected/{print $1; exit}')
+    BRIGHTNESS_CACHE="$HOME/.cache/xrandr-brightness"
+    MIN_PCT=20
+
+    pct=$(cat "$BRIGHTNESS_CACHE" 2>/dev/null)
+    [[ "$pct" =~ ^[0-9]+$ ]] || pct=100
+
+    case "$1" in
+    up) pct=$((pct + 5 > 100 ? 100 : pct + 5)) ;;
+    down) pct=$((pct - 5 < MIN_PCT ? MIN_PCT : pct - 5)) ;;
+    esac
+
+    if [ -n "$1" ] && [ -n "$XRANDR_OUTPUT" ]; then
+        xrandr --output "$XRANDR_OUTPUT" --brightness "$(awk -v p="$pct" 'BEGIN{printf "%.2f", p/100}')"
+        echo "$pct" > "$BRIGHTNESS_CACHE"
+    fi
+
+    current_percentage() { echo "$pct"; }
 else
+    mkdir -p "$(dirname "$BUS_CACHE")"
+
     detect_bus() { ddcutil detect --brief 2>/dev/null | grep -oP '(?<=/dev/i2c-)\d+' | head -1; }
 
-    mkdir -p "$(dirname "$BUS_CACHE")"
     BUS=$(cat "$BUS_CACHE" 2>/dev/null)
     if [ -z "$BUS" ]; then
         BUS=$(detect_bus)
@@ -70,12 +109,18 @@ else
 
     current_percentage() {
         read -r _ _ _ current max < <(ddcutil --bus "$BUS" --disable-dynamic-sleep --sleep-multiplier 0.1 getvcp 10 --brief 2>/dev/null)
-        if [ -z "$current" ]; then
+        if ! [[ "$current" =~ ^[0-9]+$ && "$max" =~ ^[0-9]+$ ]]; then
             BUS=$(detect_bus)
             [ -n "$BUS" ] && echo "$BUS" > "$BUS_CACHE"
             read -r _ _ _ current max < <(ddcutil --bus "$BUS" --disable-dynamic-sleep --sleep-multiplier 0.1 getvcp 10 --brief 2>/dev/null)
         fi
-        [ -z "$current" ] && return 1
+        # A lock-contended or DDC-incapable display can print flock/error
+        # diagnostics on stdout instead of leaving it empty, so validate
+        # both fields are actually numeric before doing arithmetic on them.
+        if ! [[ "$current" =~ ^[0-9]+$ && "$max" =~ ^[0-9]+$ ]]; then
+            touch "$UNSUPPORTED_CACHE"
+            return 1
+        fi
         echo $((current * 100 / max))
     }
 fi

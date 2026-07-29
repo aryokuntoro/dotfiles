@@ -53,7 +53,11 @@ Xcursor.size: 24
 Xft.dpi: 96
 Xft.antialias: true
 Xft.hinting: true
-Xft.rgba: rgb
+! rgba: none, not rgb -- HDMI-0 here is a TV; its subpixel layout and
+! internal scaling do not reliably match the RGB-stripe assumption
+! subpixel hinting depends on, so it was showing color fringing on
+! small text. Plain grayscale antialiasing avoids that.
+Xft.rgba: none
 Xft.autohint: false
 Xft.hintstyle: hintslight
 Xft.lcdfilter: lcddefault

@@ -54,6 +54,19 @@ feh --bg-scale "$wallpaper"
 # (~10s to render, so it's backgrounded either way).
 [ -d ~/.cache/betterlockscreen/current ] || betterlockscreen -u "$wallpaper" >/dev/null 2>&1 &
 
+# ── Restore software brightness (DDC-less displays) ──────────
+# backlight.sh falls back to xrandr gamma scaling when the display
+# doesn't support DDC/CI (see UNSUPPORTED_CACHE in backlight.sh) --
+# that scaling lives on the X server and resets to full brightness on
+# every new session, so reapply whatever percentage was last set.
+if [ -f ~/.cache/ddcutil-unsupported ] && [ -f ~/.cache/xrandr-brightness ]; then
+    pct=$(cat ~/.cache/xrandr-brightness)
+    output=$(xrandr --query | awk '/ connected/{print $1; exit}')
+    if [[ "$pct" =~ ^[0-9]+$ ]] && [ -n "$output" ]; then
+        xrandr --output "$output" --brightness "$(awk -v p="$pct" 'BEGIN{printf "%.2f", p/100}')"
+    fi
+fi
+
 # ── Set default rofi theme ────────────────────────────────────
 if [ ! -L ~/.config/rofi/themes/current.rasi ]; then
     ln -sf ~/.config/rofi/themes/catppuccin-mocha.rasi ~/.config/rofi/themes/current.rasi
