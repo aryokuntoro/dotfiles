@@ -80,6 +80,7 @@ bindsym $mod+Shift+b      exec $browser
 bindsym $mod+e            exec $filemgr
 bindsym $mod+m            exec $mediaplayer
 bindsym $mod+x            exec betterlockscreen -l dim
+bindsym $mod+Shift+x      exec ~/.config/i3/scripts/toggle-idle.sh
 
 # ── Keybindings: Rofi Modis ───────────────────────────────────
 bindsym $mod+c            exec rofi -show calc -theme ~/.config/rofi/themes/current.rasi
@@ -94,6 +95,7 @@ bindsym $mod+F2           exec $theme
 bindsym $mod+F3           exec ~/.config/i3/scripts/wallpaper.sh
 bindsym $mod+F4           exec ~/.config/i3/scripts/colorreload.sh
 bindsym $mod+F5           exec ~/.config/rofi/scripts/rofi-monitor.sh
+bindsym $mod+F7           exec ~/.config/rofi/scripts/rofi-idle.sh
 bindsym $mod+Shift+y      exec ~/.config/rofi/scripts/rofi-ytdlp.sh
 bindsym $mod+F6           exec ~/.config/Thunar/scripts/gvfs-connect.sh
 

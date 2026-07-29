@@ -14,11 +14,25 @@ xset r rate 300 50
 # Disable bell
 xset -b
 
-# Screen timeout
-xset dpms 600 600 600
+# Screen timeout + blanking -- adjustable via rofi-idle.sh ($mod+F7)
+# or toggled off entirely via the presentation-mode shortcut
+# ($mod+Shift+x, config/i3/scripts/toggle-idle.sh); falls back to the
+# previous 600s default if the cache is missing/invalid.
+idle_timeout=$(cat ~/.cache/idle-timeout 2>/dev/null)
+[[ "$idle_timeout" =~ ^[0-9]+$ ]] || idle_timeout=600
+if [ "$idle_timeout" -eq 0 ]; then
+    xset s off
+    xset -dpms
+else
+    xset s "$idle_timeout" "$idle_timeout"
+    xset dpms "$idle_timeout" "$idle_timeout" "$idle_timeout"
+fi
 
-# Screen blanking
-xset s 600 600
+# Lock the screen when the timeout above blanks it -- xss-lock listens
+# for the X screensaver "activate" event that `xset s` triggers.
+# idle-lock-wrapper.sh checks the "Auto-Lock" toggle from rofi-idle.sh
+# so locking can be disabled independently of the timeout itself.
+command -v xss-lock >/dev/null 2>&1 && xss-lock -- ~/.config/i3/scripts/idle-lock-wrapper.sh &
 
 # Numlock (retried: on cold boot the X server can still be finishing
 # keyboard device init right after start, which makes an immediate
