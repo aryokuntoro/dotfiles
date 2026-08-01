@@ -49,24 +49,204 @@ orange=$(get_color orange)
 # ── GTK theme name lookup ─────────────────────────────────────────
 # Single source of truth for theme_file -> GTK theme package name,
 # shared by theme-switch.sh and colorreload.sh.
+#
+# Themes are built from source into ~/.themes (catppuccin/gruvbox-gtk-
+# theme/tokyonight-gtk-theme/everforest-gtk-theme upstream install.sh,
+# Nordic plain-copied) rather than the old catppuccin-gtk-theme-*/
+# gruvbox-gtk-theme-git/tokyonight-gtk-theme-git/nordic-theme AUR
+# packages, so this repo no longer depends on paru for GTK theming.
+# Mauve is the fixed accent across every Catppuccin flavor to match
+# what was already active.
 case "$(basename "$theme_path")" in
-    catppuccin-mocha.rasi)     gtk_theme="catppuccin-mocha-mauve-standard+default"; color_scheme="prefer-dark" ;;
-    catppuccin-frappe.rasi)    gtk_theme="catppuccin-frappe-mauve-standard+default"; color_scheme="prefer-dark" ;;
-    catppuccin-macchiato.rasi) gtk_theme="catppuccin-macchiato-mauve-standard+default"; color_scheme="prefer-dark" ;;
-    catppuccin-latte.rasi)     gtk_theme="catppuccin-latte-mauve-standard+default"; color_scheme="prefer-light" ;;
-    # tokyonight-gtk-theme-git only ships Dark/Light (no Storm/Moon
+    catppuccin-mocha.rasi)     gtk_theme="Catppuccin-Mauve-Dark"; color_scheme="prefer-dark"; theme_family="catppuccin"; theme_mode="mocha" ;;
+    catppuccin-frappe.rasi)    gtk_theme="Catppuccin-Frappe-Mauve-Dark"; color_scheme="prefer-dark"; theme_family="catppuccin"; theme_mode="frappe" ;;
+    catppuccin-macchiato.rasi) gtk_theme="Catppuccin-Macchiato-Mauve-Dark"; color_scheme="prefer-dark"; theme_family="catppuccin"; theme_mode="macchiato" ;;
+    catppuccin-latte.rasi)     gtk_theme="Catppuccin-Mauve-Light"; color_scheme="prefer-light"; theme_family="catppuccin"; theme_mode="latte" ;;
+    # Tokyonight-GTK-Theme only ships Dark/Light (no Storm/Moon
     # variants), so both dark flavors share Tokyonight-Dark.
-    tokyonight-night.rasi)     gtk_theme="Tokyonight-Dark"; color_scheme="prefer-dark" ;;
-    tokyonight-storm.rasi)     gtk_theme="Tokyonight-Dark"; color_scheme="prefer-dark" ;;
-    tokyonight-moon.rasi)      gtk_theme="Tokyonight-Dark"; color_scheme="prefer-dark" ;;
-    tokyonight-day.rasi)       gtk_theme="Tokyonight-Light"; color_scheme="prefer-light" ;;
-    gruvbox-dark.rasi)         gtk_theme="Gruvbox-Dark"; color_scheme="prefer-dark" ;;
-    gruvbox-light.rasi)        gtk_theme="Gruvbox-Light"; color_scheme="prefer-light" ;;
-    # nordic-theme only ships one (dark) variant -- no Darker/Light.
+    tokyonight-night.rasi)     gtk_theme="Tokyonight-Dark"; color_scheme="prefer-dark"; theme_family="tokyonight"; theme_mode="dark" ;;
+    tokyonight-storm.rasi)     gtk_theme="Tokyonight-Dark"; color_scheme="prefer-dark"; theme_family="tokyonight"; theme_mode="dark" ;;
+    tokyonight-moon.rasi)      gtk_theme="Tokyonight-Dark"; color_scheme="prefer-dark"; theme_family="tokyonight"; theme_mode="dark" ;;
+    tokyonight-day.rasi)       gtk_theme="Tokyonight-Light"; color_scheme="prefer-light"; theme_family="tokyonight"; theme_mode="light" ;;
+    gruvbox-dark.rasi)         gtk_theme="Gruvbox-Dark"; color_scheme="prefer-dark"; theme_family="gruvbox"; theme_mode="dark" ;;
+    gruvbox-light.rasi)        gtk_theme="Gruvbox-Light"; color_scheme="prefer-light"; theme_family="gruvbox"; theme_mode="light" ;;
+    everforest-dark.rasi)      gtk_theme="Everforest-Dark"; color_scheme="prefer-dark"; theme_family="everforest"; theme_mode="dark" ;;
+    everforest-light.rasi)     gtk_theme="Everforest-Light"; color_scheme="prefer-light"; theme_family="everforest"; theme_mode="light" ;;
+    # Nordic only ships one (dark) variant -- no Darker/Light, and no
+    # accent system -- theme_family stays unset so the accent override
+    # below is a no-op for it.
     nord-dark.rasi)            gtk_theme="Nordic"; color_scheme="prefer-dark" ;;
     nord-light.rasi)           gtk_theme="Nordic"; color_scheme="prefer-light" ;;
     *)                         gtk_theme=""; color_scheme="prefer-dark" ;;
 esac
+
+# ── Accent override ────────────────────────────────────────────
+# rofi-accent.sh ($mod+F8) persists a per-session accent name here,
+# independent of the flavor/mode picked in theme-switch.sh. Hex values
+# below are copied straight from each theme's own upstream sass
+# palette (~/Downloads/*-GTK-Theme/themes/src/sass/_color-palette-
+# *.scss at install time), not re-derived, so they match the actual
+# built GTK theme exactly. A name that doesn't exist for the current
+# family (e.g. a Catppuccin-only accent while Gruvbox is active), or
+# no saved choice at all, leaves accent/gtk_theme at the family's own
+# default set above.
+accent_hex() {
+    case "$1:$2:$3" in
+        catppuccin:mocha:default)   echo "#27a1b9" ;;
+        catppuccin:mocha:rosewater) echo "#f5e0dc" ;;
+        catppuccin:mocha:flamingo)  echo "#f2cdcd" ;;
+        catppuccin:mocha:pink)      echo "#f5c2e7" ;;
+        catppuccin:mocha:mauve)     echo "#cba6f7" ;;
+        catppuccin:mocha:red)       echo "#f38ba8" ;;
+        catppuccin:mocha:maroon)    echo "#eba0ac" ;;
+        catppuccin:mocha:peach)     echo "#fab387" ;;
+        catppuccin:mocha:yellow)    echo "#f9e2af" ;;
+        catppuccin:mocha:green)     echo "#a6e3a1" ;;
+        catppuccin:mocha:teal)      echo "#94e2d5" ;;
+        catppuccin:mocha:sky)       echo "#89dceb" ;;
+        catppuccin:mocha:sapphire)  echo "#74c7ec" ;;
+        catppuccin:mocha:blue)      echo "#89b4fa" ;;
+        catppuccin:mocha:lavender)  echo "#b4befe" ;;
+        catppuccin:mocha:grey)      echo "#6c7086" ;;
+        catppuccin:latte:default)   echo "#006a83" ;;
+        catppuccin:latte:rosewater) echo "#dc8a78" ;;
+        catppuccin:latte:flamingo)  echo "#dd7878" ;;
+        catppuccin:latte:pink)      echo "#ea76cb" ;;
+        catppuccin:latte:mauve)     echo "#8839ef" ;;
+        catppuccin:latte:red)       echo "#d20f39" ;;
+        catppuccin:latte:maroon)    echo "#e64553" ;;
+        catppuccin:latte:peach)     echo "#fe640b" ;;
+        catppuccin:latte:yellow)    echo "#df8e1d" ;;
+        catppuccin:latte:green)     echo "#40a02b" ;;
+        catppuccin:latte:teal)      echo "#179299" ;;
+        catppuccin:latte:sky)       echo "#04a5e5" ;;
+        catppuccin:latte:sapphire)  echo "#209fb5" ;;
+        catppuccin:latte:blue)      echo "#1e66f5" ;;
+        catppuccin:latte:lavender)  echo "#7287fd" ;;
+        catppuccin:latte:grey)      echo "#ccd0da" ;;
+        catppuccin:frappe:default)   echo "#29a4bd" ;;
+        catppuccin:frappe:rosewater) echo "#f2d5cf" ;;
+        catppuccin:frappe:flamingo)  echo "#eebebe" ;;
+        catppuccin:frappe:pink)      echo "#f4b8e4" ;;
+        catppuccin:frappe:mauve)     echo "#ca9ee6" ;;
+        catppuccin:frappe:red)       echo "#e78284" ;;
+        catppuccin:frappe:maroon)    echo "#ea999c" ;;
+        catppuccin:frappe:peach)     echo "#ef9f76" ;;
+        catppuccin:frappe:yellow)    echo "#e5c890" ;;
+        catppuccin:frappe:green)     echo "#a6d189" ;;
+        catppuccin:frappe:teal)      echo "#81c8be" ;;
+        catppuccin:frappe:sky)       echo "#99d1db" ;;
+        catppuccin:frappe:sapphire)  echo "#85c1dc" ;;
+        catppuccin:frappe:blue)      echo "#8caaee" ;;
+        catppuccin:frappe:lavender)  echo "#babbf1" ;;
+        catppuccin:frappe:grey)      echo "#6c7086" ;;
+        catppuccin:macchiato:default)   echo "#589ed7" ;;
+        catppuccin:macchiato:rosewater) echo "#f4dbd6" ;;
+        catppuccin:macchiato:flamingo)  echo "#f0c6c6" ;;
+        catppuccin:macchiato:pink)      echo "#f5bde6" ;;
+        catppuccin:macchiato:mauve)     echo "#c6a0f6" ;;
+        catppuccin:macchiato:red)       echo "#ed8796" ;;
+        catppuccin:macchiato:maroon)    echo "#ee99a0" ;;
+        catppuccin:macchiato:peach)     echo "#f5a97f" ;;
+        catppuccin:macchiato:yellow)    echo "#eed49f" ;;
+        catppuccin:macchiato:green)     echo "#a6da95" ;;
+        catppuccin:macchiato:teal)      echo "#8bd5ca" ;;
+        catppuccin:macchiato:sky)       echo "#91d7e3" ;;
+        catppuccin:macchiato:sapphire)  echo "#7dc4e4" ;;
+        catppuccin:macchiato:blue)      echo "#8aadf4" ;;
+        catppuccin:macchiato:lavender)  echo "#b7bdf8" ;;
+        catppuccin:macchiato:grey)      echo "#6c7086" ;;
+        gruvbox:dark:default) echo "#7daea3" ;;
+        gruvbox:dark:red)     echo "#ea6962" ;;
+        gruvbox:dark:pink)    echo "#d3869b" ;;
+        gruvbox:dark:purple)  echo "#d386cd" ;;
+        gruvbox:dark:blue)    echo "#7daea3" ;;
+        gruvbox:dark:teal)    echo "#89b482" ;;
+        gruvbox:dark:green)   echo "#a9b665" ;;
+        gruvbox:dark:yellow)  echo "#d8a657" ;;
+        gruvbox:dark:orange)  echo "#e78a4e" ;;
+        gruvbox:dark:grey)    echo "#7c6f64" ;;
+        gruvbox:light:default) echo "#45707a" ;;
+        gruvbox:light:red)     echo "#c14a4a" ;;
+        gruvbox:light:pink)    echo "#b16286" ;;
+        gruvbox:light:purple)  echo "#ab62b1" ;;
+        gruvbox:light:blue)    echo "#45707a" ;;
+        gruvbox:light:teal)    echo "#4c7a5d" ;;
+        gruvbox:light:green)   echo "#6c782e" ;;
+        gruvbox:light:yellow)  echo "#b47109" ;;
+        gruvbox:light:orange)  echo "#c35e0a" ;;
+        gruvbox:light:grey)    echo "#d5c4a1" ;;
+        tokyonight:dark:default) echo "#27a1b9" ;;
+        tokyonight:dark:red)     echo "#f7768e" ;;
+        tokyonight:dark:pink)    echo "#ff007c" ;;
+        tokyonight:dark:purple)  echo "#bb9af7" ;;
+        tokyonight:dark:blue)    echo "#7aa2f7" ;;
+        tokyonight:dark:teal)    echo "#1abc9c" ;;
+        tokyonight:dark:green)   echo "#73daca" ;;
+        tokyonight:dark:yellow)  echo "#e0af68" ;;
+        tokyonight:dark:orange)  echo "#ff9e64" ;;
+        tokyonight:dark:grey)    echo "#737aa2" ;;
+        tokyonight:light:default) echo "#006a83" ;;
+        tokyonight:light:red)     echo "#f52a65" ;;
+        tokyonight:light:pink)    echo "#d20065" ;;
+        tokyonight:light:purple)  echo "#7847bd" ;;
+        tokyonight:light:blue)    echo "#2e7de9" ;;
+        tokyonight:light:teal)    echo "#118c74" ;;
+        tokyonight:light:green)   echo "#387068" ;;
+        tokyonight:light:yellow)  echo "#8c6c3e" ;;
+        tokyonight:light:orange)  echo "#b15c00" ;;
+        tokyonight:light:grey)    echo "#c7c7d1" ;;
+        everforest:dark:default) echo "#7fbbb3" ;;
+        everforest:dark:red)     echo "#e67e80" ;;
+        everforest:dark:orange)  echo "#e69875" ;;
+        everforest:dark:purple)  echo "#d699b6" ;;
+        everforest:dark:blue)    echo "#7fbbb3" ;;
+        everforest:dark:teal)    echo "#83c092" ;;
+        everforest:dark:green)   echo "#a7c080" ;;
+        everforest:dark:yellow)  echo "#dbbc7f" ;;
+        everforest:dark:pink)    echo "#d3869b" ;;
+        everforest:dark:grey)    echo "#56635f" ;;
+        everforest:light:default) echo "#3a94c5" ;;
+        everforest:light:red)     echo "#f85552" ;;
+        everforest:light:orange)  echo "#f57d26" ;;
+        everforest:light:purple)  echo "#df69ba" ;;
+        everforest:light:blue)    echo "#3a94c5" ;;
+        everforest:light:teal)    echo "#35a77c" ;;
+        everforest:light:green)   echo "#8da101" ;;
+        everforest:light:yellow)  echo "#dfa000" ;;
+        everforest:light:pink)    echo "#b16286" ;;
+        everforest:light:grey)    echo "#e0dcc7" ;;
+    esac
+}
+
+gtk_folder_for_accent() {
+    local family="$1" mode="$2" accent="$3" cap=""
+    if [ -n "$accent" ] && [ "$accent" != "default" ]; then
+        cap="$(tr '[:lower:]' '[:upper:]' <<< "${accent:0:1}")${accent:1}-"
+    fi
+    case "$family:$mode" in
+        catppuccin:mocha)     echo "Catppuccin-${cap}Dark" ;;
+        catppuccin:latte)     echo "Catppuccin-${cap}Light" ;;
+        catppuccin:frappe)    echo "Catppuccin-Frappe-${cap}Dark" ;;
+        catppuccin:macchiato) echo "Catppuccin-Macchiato-${cap}Dark" ;;
+        gruvbox:dark)         echo "Gruvbox-${cap}Dark" ;;
+        gruvbox:light)        echo "Gruvbox-${cap}Light" ;;
+        tokyonight:dark)      echo "Tokyonight-${cap}Dark" ;;
+        tokyonight:light)     echo "Tokyonight-${cap}Light" ;;
+        everforest:dark)      echo "Everforest-${cap}Dark" ;;
+        everforest:light)     echo "Everforest-${cap}Light" ;;
+    esac
+}
+
+saved_accent=$(cat "$HOME/.cache/theme-accent" 2>/dev/null)
+if [ -n "$theme_family" ] && [ -n "$saved_accent" ]; then
+    override_hex=$(accent_hex "$theme_family" "$theme_mode" "$saved_accent")
+    override_folder=$(gtk_folder_for_accent "$theme_family" "$theme_mode" "$saved_accent")
+    if [ -n "$override_hex" ] && [ -d "$HOME/.themes/$override_folder" ]; then
+        accent="$override_hex"
+        gtk_theme="$override_folder"
+    fi
+fi
 
 # ── System dark/light signal (xdg-desktop-portal -> Firefox etc) ──
 # GTK's own gtk-application-prefer-dark-theme (settings.ini) only

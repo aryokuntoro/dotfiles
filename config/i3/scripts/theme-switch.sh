@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
 # ── Theme Switcher via Rofi ───────────────────────────────────
-# Supports: Catppuccin, TokyoNight, Gruvbox, Nord
+# Supports: Catppuccin, TokyoNight, Gruvbox, Everforest, Nord
 # Colors are taken directly from each theme's .rasi palette
 # (no wallpaper/pywal dependency).
 
@@ -19,6 +19,8 @@ TokyoNight Moon
 TokyoNight Day
 Gruvbox Dark
 Gruvbox Light
+Everforest Dark
+Everforest Light
 Nord Dark
 Nord Light"
 
@@ -37,6 +39,8 @@ case "$selected" in
     "TokyoNight Day")       theme_file="tokyonight-day.rasi" ;;
     "Gruvbox Dark")         theme_file="gruvbox-dark.rasi" ;;
     "Gruvbox Light")        theme_file="gruvbox-light.rasi" ;;
+    "Everforest Dark")      theme_file="everforest-dark.rasi" ;;
+    "Everforest Light")     theme_file="everforest-light.rasi" ;;
     "Nord Dark")            theme_file="nord-dark.rasi" ;;
     "Nord Light")           theme_file="nord-light.rasi" ;;
     *)                      exit 0 ;;
