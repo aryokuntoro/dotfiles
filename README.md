@@ -27,13 +27,32 @@ own TUI, not a shell script that silently copies files.
 ## Table of contents
 
 - [Install](#install)
+- [Repo layout](#repo-layout)
 - [Required packages](#required-packages)
+- [Keyboard shortcuts](#keyboard-shortcuts)
 - [Deliberately left out](#deliberately-left-out)
 - [Sharing files over Samba](#sharing-files-over-samba-thunar--properties--share)
 - [Miscellaneous notes](#miscellaneous-notes)
 - [Special thanks](#special-thanks)
 
 ## Install
+
+One-liner, [linutil](https://github.com/ChrisTitusTech/linutil)-style
+-- clones (or updates) `~/Projects/dotfiles` and launches the TUI:
+
+```sh
+curl -fsSL https://raw.githubusercontent.com/aryokuntoro/dotfiles/master/bootstrap.sh | bash
+```
+
+Needs `git` and `cargo`/`rustc` already on PATH (`sudo pacman -S git
+rust`), and a real interactive terminal to run it from -- piping to
+`bash` means the script's own stdin is the download, so it reconnects
+to `/dev/tty` before handing off to the installer, which won't work
+from a non-interactive shell with no controlling tty. Set
+`DOTFILES_DIR` to clone somewhere other than the default.
+
+Prefer to read the script before running it, or already have the repo
+cloned? Same result, done by hand:
 
 ```sh
 sudo pacman -S rust   # if you don't have it yet -- a fresh Arch install doesn't ship it
@@ -88,6 +107,37 @@ this repo first, then re-run `./install.sh` to push the change out to
 After installing: log out/in once (so i3/polybar/dunst read the new
 config), then `$mod+F2` to pick an initial theme.
 
+## Repo layout
+
+```
+.
+├── bootstrap.sh           curl | bash entry point -- clones the repo, hands off to install.sh
+├── install.sh             local entry point -- thin launcher for installer/
+├── installer/             the TUI itself (Rust + ratatui)
+│   └── src/
+│       ├── main.rs        terminal setup/teardown, event loop
+│       ├── app.rs         UI state -- tabs, selection, search, install progress
+│       ├── items.rs       the checklist itself: what gets installed + its descriptions
+│       ├── installer.rs   the actual copy / clone / build / package logic
+│       └── ui.rs          rendering
+├── config/                -> ~/.config/<app>, one folder (or file) per app
+│   ├── i3/                window manager config + scripts
+│   ├── polybar/           status bar
+│   ├── rofi/               launcher, menus, theme switcher, accent picker
+│   ├── picom/              compositor
+│   ├── dunst/               notifications
+│   ├── kitty/                terminal
+│   ├── gtk-3.0/, gtk-4.0/, qt5ct/, qt6ct/    GTK/Qt theming
+│   ├── autorandr/           this machine's monitor profile
+│   ├── applications/        -> ~/.local/share/applications (installed one file at a time)
+│   └── ...                  autostart, btop, htop, mpv, qalculate, Thunar, uad, xarchiver, + a few loose files
+├── home/                    -> ~/.<file>
+│   └── xinitrc, Xresources, bashrc, bash_profile, bash_logout, gitconfig
+├── setup-hibernate.sh       one-time system setup, NOT part of install.sh -- needs sudo, edits the bootloader
+├── setup-samba-share.sh     one-time system setup, NOT part of install.sh -- needs sudo
+└── README.md
+```
+
 ## Required packages
 
 ### Official repos
@@ -119,6 +169,90 @@ cd /tmp/paru && makepkg -si
 > Don't feel like running these by hand? Both lists above are already
 > in the TUI installer's checklist too (the **System packages**
 > category) -- see [Install](#install).
+
+## Keyboard shortcuts
+
+### Installer TUI
+
+| Key | Action |
+| --- | --- |
+| `↑`/`↓`, `j`/`k` | move selection |
+| `←`/`→`, `h`/`l` | switch tab |
+| `space` | toggle the highlighted item |
+| `a` | toggle everything currently visible (scoped to the tab + search filter) |
+| `/` | search within the active tab; `enter` applies the filter, `esc` clears it |
+| `enter` | start installing whatever's checked |
+| `esc` / `ctrl+c` | cancel a running install (stops before the *next* item, never mid-step) |
+| `y` / `n` / `a` | on an overwrite prompt: yes / no / yes to all remaining |
+| `q` | quit |
+
+### i3 (`$mod` = Super/Windows key)
+
+**Launchers & rofi menus**
+
+| Key | Action |
+| --- | --- |
+| `$mod+Return` | terminal |
+| `$mod+d` | app launcher |
+| `$mod+Tab` | window switcher |
+| `$mod+Shift+d` | run command |
+| `$mod+p` | power menu |
+| `$mod+Shift+b` | browser |
+| `$mod+e` | file manager |
+| `$mod+m` | media player |
+| `$mod+c` | calculator |
+| `$mod+.` | emoji picker |
+| `$mod+n` | network menu |
+| `$mod+b` | bluetooth menu |
+| `$mod+Shift+v` | clipboard history |
+| `$mod+Shift+y` | yt-dlp downloader |
+| `$mod+F2` | theme switcher |
+| `$mod+F3` | wallpaper picker |
+| `$mod+F4` | reload colors from the active theme |
+| `$mod+F5` | monitor layout menu |
+| `$mod+F6` | connect a network share (gvfs) |
+| `$mod+F7` | screen-timeout / auto-lock menu |
+| `$mod+F8` | accent color picker |
+| `$mod+x` | lock screen |
+| `$mod+Shift+x` | presentation mode (toggle screen-timeout off) |
+| `$mod+F1` | screenshot |
+| `$mod+ctrl+r` | screen recording |
+| `$mod+Shift+s` | stream |
+
+**Windows & layout**
+
+| Key | Action |
+| --- | --- |
+| `$mod+h/j/k/l` or arrows | focus left/down/up/right |
+| `$mod+Shift+h/j/k/l` or arrows | move window left/down/up/right |
+| `$mod+f` | fullscreen |
+| `$mod+Shift+space` | floating toggle |
+| `$mod+space` | focus tiling/floating |
+| `$mod+g` / `$mod+s` | toggle split layout |
+| `$mod+w` | tabbed layout |
+| `$mod+slash` / `$mod+minus` | split horizontal / vertical |
+| `$mod+a` | focus parent |
+| `$mod+r` | resize mode (`h/j/k/l` or arrows, `esc` to exit) |
+| `$mod+Shift+q` | kill focused window |
+| `$mod+Shift+Return` | scratchpad terminal |
+| `$mod+ctrl+Return` | show scratchpad |
+| `$mod+Shift+c` | reload i3 config |
+| `$mod+Shift+r` | restart i3 |
+
+**Workspaces**
+
+| Key | Action |
+| --- | --- |
+| `$mod+1`...`$mod+0` | switch to workspace 1-10 |
+| `$mod+Shift+1`...`$mod+Shift+0` | move focused window to workspace 1-10 |
+
+**Media keys**
+
+| Key | Action |
+| --- | --- |
+| `XF86AudioPlay`/`Next`/`Prev`/`Stop` | playerctl |
+| `XF86AudioRaiseVolume`/`LowerVolume`/`Mute` | volume |
+| `XF86MonBrightnessUp`/`Down` | brightness (`brightnessctl`; see the note on `backlight.sh` below) |
 
 ## Deliberately left out
 
