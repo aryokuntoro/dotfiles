@@ -5,90 +5,92 @@
 ![Rust](https://img.shields.io/badge/installer-Rust-CE422B?logo=rust&logoColor=white)
 ![ratatui](https://img.shields.io/badge/TUI-ratatui-DEA584)
 
-Konfigurasi desktop Arch Linux: **i3 + polybar + rofi + dunst + Thunar,
-picom, kitty**, tema GTK/Qt yang bisa diganti live, dan sisa sesi
-desktop (`.xinitrc`, `.Xresources`) — dipasang lewat TUI sendiri, bukan
-shell script yang cuma nyalin file diam-diam.
+Arch Linux desktop config: **i3 + polybar + rofi + dunst + Thunar,
+picom, kitty**, live-switchable GTK/Qt themes, and the rest of the
+desktop session (`.xinitrc`, `.Xresources`) — installed through its
+own TUI, not a shell script that silently copies files.
 
-**Yang bikin repo ini beda dari dotfiles kebanyakan:**
+**What sets this repo apart from the usual dotfiles pile:**
 
-- **Installer TUI** ([ratatui](https://ratatui.rs)) dengan checklist,
-  pencarian, konfirmasi overwrite, dan progress bar live — bukan
-  `install.sh` yang nyalin semuanya tanpa nanya. Jalan di raw tty juga,
-  jadi bisa dipakai sebelum ada desktop sama sekali.
-- **5 tema GTK** (Catppuccin, Gruvbox, Tokyonight, Everforest, Nordic)
-  di-*build* langsung dari source upstream-nya, bukan paket AUR yang
-  bisa basi — ganti tema dan accent color kapan saja tanpa keluar dari
-  rofi.
-- Semua warna (i3, polybar, dunst, rofi, kitty, GTK, Qt, `.Xresources`)
-  ditarik dari **satu palet aktif**, jadi ganti tema langsung
-  mewarnai ulang seluruh desktop sekaligus.
+- **TUI installer** ([ratatui](https://ratatui.rs)) with a checklist,
+  search, overwrite confirmation, and a live progress bar — not an
+  `install.sh` that copies everything without asking. Runs on a raw
+  tty too, so it works before a desktop even exists.
+- **5 GTK themes** (Catppuccin, Gruvbox, Tokyonight, Everforest,
+  Nordic) built straight from their upstream source, not AUR packages
+  that can go stale — switch theme and accent color any time without
+  leaving rofi.
+- Every color (i3, polybar, dunst, rofi, kitty, GTK, Qt,
+  `.Xresources`) is pulled from **one active palette**, so switching
+  themes instantly recolors the whole desktop at once.
 
-## Daftar isi
+## Table of contents
 
 - [Install](#install)
-- [Paket yang dibutuhkan](#paket-yang-dibutuhkan)
-- [Yang sengaja tidak dimasukkan](#yang-sengaja-tidak-dimasukkan)
-- [Berbagi file lewat Samba](#berbagi-file-lewat-samba-thunar--properties--share)
-- [Catatan lain-lain](#catatan-lain-lain)
+- [Required packages](#required-packages)
+- [Deliberately left out](#deliberately-left-out)
+- [Sharing files over Samba](#sharing-files-over-samba-thunar--properties--share)
+- [Miscellaneous notes](#miscellaneous-notes)
 - [Special thanks](#special-thanks)
 
 ## Install
 
 ```sh
-sudo pacman -S rust   # kalau belum ada -- fresh Arch install gak bawa ini bawaan
-git clone <url-repo-ini> ~/Projects/dotfiles
+sudo pacman -S rust   # if you don't have it yet -- a fresh Arch install doesn't ship it
+git clone <this-repo-url> ~/Projects/dotfiles
 cd ~/Projects/dotfiles
 ./install.sh
 ```
 
-`install.sh` cuma launcher tipis -- installer sebenarnya ada di
-`installer/` (Rust + [ratatui](https://ratatui.rs)), TUI checklist
-buat pilih komponen mana yang mau di-install. Jalan langsung di raw
-tty juga (gak butuh X/Wayland duluan, ratatui ngomong ANSI langsung ke
-terminal), jadi bisa dipakai dari fresh Arch install sebelum ada
-desktop sama sekali.
+`install.sh` is just a thin launcher -- the actual installer lives in
+`installer/` (Rust + [ratatui](https://ratatui.rs)), a TUI checklist
+for picking which components to install. It runs directly on a raw
+tty too (no X/Wayland needed first, ratatui talks ANSI straight to the
+terminal), so it can be used from a fresh Arch install before any
+desktop exists at all.
 
-Checklist-nya ada 3 kategori:
+The checklist has 3 categories:
 
-- **System packages** -- `sudo pacman -S --needed` buat paket resmi,
-  `paru -S` buat paket AUR (bootstrap paru dulu otomatis kalau belum
-  ada, sama persis langkah manual di bagian "Paket yang dibutuhkan" di
-  bawah). Satu-satunya bagian checklist yang **off by default** dan
-  butuh sudo -- pas dijalankan, terminal dikembalikan sepenuhnya ke
-  pacman/paru/makepkg (biar prompt password & konfirmasi [Y/n]
-  mereka jalan normal), baru balik ke TUI setelah selesai.
-- **Dotfiles** -- tiap `config/<app>/` -> `~/.config/<app>`, file di
+- **System packages** -- `sudo pacman -S --needed` for official
+  packages, `paru -S` for AUR packages (bootstraps paru automatically
+  first if it isn't there yet, the exact same manual steps as in the
+  "Required packages" section below). The one part of the checklist
+  that's **off by default** and needs sudo -- while it runs, the
+  terminal is handed fully back to pacman/paru/makepkg (so their
+  password prompts and [Y/n] confirmations work normally), then
+  control returns to the TUI once it's done.
+- **Dotfiles** -- each `config/<app>/` -> `~/.config/<app>`, files in
   `home/` -> `~/.<file>`, `config/applications/` ->
-  `~/.local/share/applications/`. Yang sudah ada dan **beda** isinya
-  bakal nanya dulu (timpa+backup / lewati / timpa semua sisanya), yang
-  identik langsung di-skip tanpa nanya. Aman dijalankan berkali-kali.
-- **Tema GTK** -- Catppuccin/Gruvbox/Tokyonight/Everforest/Nordic
-  di-clone langsung dari GitHub upstream masing-masing terus di-build
-  ke `~/.themes` (lewat `install.sh` bawaan tiap proyek, kecuali
-  Nordic yang sudah pre-built). Ini yang bikin `theme-switch.sh`
-  ($mod+F2) dan accent picker ($mod+F8) punya tema buat dipakai --
-  tanpa langkah ini keduanya tetap jalan tapi gak nemu foldernya.
+  `~/.local/share/applications/`. Anything that already exists with
+  **different** content gets asked about first (overwrite+backup /
+  skip / overwrite all remaining), identical content is skipped
+  without asking. Safe to run repeatedly.
+- **GTK themes** -- Catppuccin/Gruvbox/Tokyonight/Everforest/Nordic
+  are cloned straight from their respective GitHub upstreams and
+  built into `~/.themes` (via each project's own `install.sh`, except
+  Nordic which ships pre-built). This is what gives `theme-switch.sh`
+  ($mod+F2) and the accent picker ($mod+F8) themes to work with --
+  without this step both still work, they just won't find the
+  folders.
 
-Cari lewat `/`, batalkan yang lagi jalan dengan `esc`/`ctrl+c` (berhenti
-sebelum item berikutnya, gak motong yang lagi jalan di tengah).
+Search with `/`, cancel a running install with `esc`/`ctrl+c` (stops
+before the next item, doesn't cut off whatever's running mid-step).
 
-Kalau repo ini sudah pernah di-clone sebelumnya: **`git pull` dulu,
-baru `./install.sh`** -- kebalik urutannya, checklist-nya cuma nawarin
-versi lama yang sudah ada di repo, jadi update terbaru gak kebawa ke
-`~/.config`.
+If this repo has already been cloned before: **`git pull` first, then
+`./install.sh`** -- the other way around, the checklist only offers
+whatever old version is already sitting in the repo, so the latest
+update never makes it to `~/.config`.
 
-Karena dotfiles-nya di-copy, bukan symlink: edit dulu file sumber di
-repo ini, baru jalankan ulang `./install.sh` untuk mendorong perubahan
-ke `$HOME` — mengedit langsung di `~/.config` tidak akan tersimpan di
-sini.
+Since the dotfiles are copied, not symlinked: edit the source file in
+this repo first, then re-run `./install.sh` to push the change out to
+`$HOME` — editing directly under `~/.config` won't be saved back here.
 
-Setelah install: logout/login sekali (biar i3/polybar/dunst baca
-config baru), lalu `$mod+F2` untuk pilih tema awal.
+After installing: log out/in once (so i3/polybar/dunst read the new
+config), then `$mod+F2` to pick an initial theme.
 
-## Paket yang dibutuhkan
+## Required packages
 
-### Repo resmi
+### Official repos
 
 ```sh
 sudo pacman -S i3-wm polybar rofi dunst picom \
@@ -100,13 +102,13 @@ sudo pacman -S i3-wm polybar rofi dunst picom \
   ttf-jetbrains-mono-nerd otf-font-awesome noto-fonts papirus-icon-theme
 ```
 
-### AUR (butuh `paru`)
+### AUR (needs `paru`)
 
 ```sh
 paru -S gtkhash-thunar edid-decode betterlockscreen i3lock-color python-pywal16 greenclip bibata-cursor-theme
 ```
 
-Belum punya `paru`?
+Don't have `paru` yet?
 
 ```sh
 sudo pacman -S --needed base-devel git
@@ -114,99 +116,104 @@ git clone https://aur.archlinux.org/paru.git /tmp/paru
 cd /tmp/paru && makepkg -si
 ```
 
-> Malas jalanin manual? Kedua daftar di atas sudah ada di checklist
-> installer TUI-nya juga (kategori **System packages**) -- lihat
-> [Install](#install).
+> Don't feel like running these by hand? Both lists above are already
+> in the TUI installer's checklist too (the **System packages**
+> category) -- see [Install](#install).
 
-## Yang sengaja tidak dimasukkan
+## Deliberately left out
 
-Profil browser (cache/cookies, bukan config), `gh` (token OAuth),
-`dconf`/`pulse` (state runtime biner), `libreoffice`. `.gitconfig` di
-sini cuma set credential helper ke `gh auth git-credential` — jalankan
-sendiri `git config --global user.name`/`user.email` di mesin baru.
+Browser profiles (cache/cookies, not config), `gh` (OAuth token),
+`dconf`/`pulse` (binary runtime state), `libreoffice`. `.gitconfig`
+here only sets the credential helper to `gh auth git-credential` —
+run `git config --global user.name`/`user.email` yourself on a new
+machine.
 
-## Berbagi file lewat Samba (Thunar → Properties → Share)
+## Sharing files over Samba (Thunar → Properties → Share)
 
-Jalankan sekali setelah install:
+Run once after installing:
 
 ```sh
 sudo bash ~/Projects/dotfiles/setup-samba-share.sh
 ```
 
-Lalu **logout/login**. Ini setup **guest access tanpa password** — pas
-untuk LAN rumah yang dipercaya, jangan dipakai kalau terekspos ke
+Then **log out/in**. This sets up **guest access with no password** —
+fine for a trusted home LAN, don't use it if it's exposed to the
 internet.
 
-Dua hal manual per-folder yang mau dishare:
+Two things you still have to do by hand per shared folder:
 
-- Semua folder di antara home dan folder yang dishare butuh bit
-  execute untuk "other" (`chmod o+x`) — kalau Windows bilang "you do
-  not have permission to access" padahal guest-auth sudah jalan, ini
-  penyebabnya (cek `vfs_ChDir(...) failed: Permission denied` di
+- Every folder between home and the shared folder needs the execute
+  bit for "other" (`chmod o+x`) — if Windows says "you do not have
+  permission to access" even though guest auth is working, this is
+  why (check for `vfs_ChDir(...) failed: Permission denied` in
   `/var/log/samba/log.<client>`).
-- Folder yang dishare butuh minimal `o+rx`, tambah `o+w` kalau mau
-  bisa ditulis.
+- The shared folder itself needs at least `o+rx`, add `o+w` if it
+  should be writable too.
 
-### Connect dari Windows
+### Connecting from Windows
 
-`\\<hostname>\<sharename>` di File Explorer. Kalau Windows 10/11
-nolak dengan *"organization's security policies block unauthenticated
-guest access"*, aktifkan di sisi Windows:
+`\\<hostname>\<sharename>` in File Explorer. If Windows 10/11 refuses
+with *"organization's security policies block unauthenticated guest
+access"*, enable this on the Windows side:
 
 - `gpedit.msc` → Computer Configuration → Administrative Templates →
   Network → Lanman Workstation → **Enable insecure guest logons**
-  (Pro/Enterprise/Education), atau
+  (Pro/Enterprise/Education), or
 - Registry: `HKLM\SYSTEM\CurrentControlSet\Services\LanmanWorkstation\Parameters`,
-  DWORD `AllowInsecureGuestAuth` = `1` (berlaku juga di Home).
+  DWORD `AllowInsecureGuestAuth` = `1` (also works on Home).
 
-Restart Windows setelahnya.
+Restart Windows afterward.
 
-## Catatan lain-lain
+## Miscellaneous notes
 
-- Semua warna polybar/rofi dibaca langsung dari `config.ini`/`.rasi`
-  aktif — ganti tema lewat `theme-switch.sh` otomatis mewarnai ulang
-  semuanya, tanpa edit script.
-- `polybar/scripts/backlight.sh` otomatis pilih jalur yang sesuai
-  hardware: kalau ada panel asli (`/sys/class/backlight` keisi, kasus
-  laptop) pakai `brightnessctl`, kalau enggak (kasus desktop ini) jatuh
-  ke DDC/CI (`ddcutil`) buat ngatur monitor eksternal langsung.
-- `[module/battery]` di `polybar/config.ini` sengaja gak dimasukkan ke
-  `modules-right` — module bawaan `internal/battery` polybar bisa
-  fatal error pas start kalau `battery`/`adapter` gak match device asli,
-  dan mesin ini gak punya baterai. Buat laptop: cek nama asli lewat
-  `ls /sys/class/power_supply/`, sesuaikan `battery`/`adapter` di
-  module-nya, baru tambahin `battery` ke `modules-right`. Icon-nya
-  animasi (mengisi) pas charging; notifikasi plug/unplug charger dan
-  baterai lemah (≤20%) dihandle terpisah lewat
-  `polybar/scripts/battery-notify.sh` (di-background dari
-  `autostart.sh`, langsung exit no-op kalau gak ada baterai).
-- `autorandr/default/` itu profile monitor spesifik mesin ini (fingerprint
-  EDID + layout HDMI-0 punya monitor ini) — bukan sesuatu yang portable
-  by design. Di mesin/monitor lain, profile ini gak bakal match (autostart
-  tetap jalan normal, cuma gak ada-apply apa-apa), jadi simpan profile
-  baru punya mesin itu sendiri: `autorandr --save <nama>` setelah xrandr
-  di-setup manual sesuai monitornya. Workspace 6-10 di `i3/config` pakai
-  `output right` (posisi relatif, bukan nama port) supaya routing ke
-  monitor kedua tetap jalan di hardware apa pun tanpa perlu diedit.
-- Tombol `XF86MonBrightnessUp`/`Down` di `i3/config` manggil
-  `brightnessctl` langsung, jadi di laptop itu udah konsisten sama
-  jalur yang dipakai `backlight.sh`. Di desktop ini practically no-op
-  (gak ada panel buat `brightnessctl` atur) — repoint ke
-  `backlight.sh up`/`down` kalau mau tombol fisik ngatur monitor
-  eksternal lewat DDC/CI juga.
-- Semua ikon dari Font Awesome, sumbernya `ttf-jetbrains-mono-nerd`
-  dengan `otf-font-awesome` sebagai fallback font.
-- `qt5ct.conf`, `qt6ct.conf`, `uad/config.toml`, `greenclip.toml`, dan
-  `mount-image.desktop` punya absolute path mesin sumber tertanam di
-  satu-dua setting — repoint kalau username kamu beda.
+- All polybar/rofi colors are read straight from the active
+  `config.ini`/`.rasi` — switching themes via `theme-switch.sh`
+  automatically recolors everything, no script editing needed.
+- `polybar/scripts/backlight.sh` automatically picks whichever path
+  matches the hardware: if there's a real backlight panel
+  (`/sys/class/backlight` is populated, the laptop case) it uses
+  `brightnessctl`; if not (this desktop's case), it falls back to
+  DDC/CI (`ddcutil`) to control the external monitor directly.
+- `[module/battery]` in `polybar/config.ini` is deliberately left out
+  of `modules-right` — polybar's built-in `internal/battery` module
+  can hard-fail at startup if `battery`/`adapter` don't match a real
+  device, and this machine has no battery. For a laptop: check the
+  real device names via `ls /sys/class/power_supply/`, set
+  `battery`/`adapter` in the module accordingly, then add `battery` to
+  `modules-right`. Its icon animates (filling up) while charging;
+  charger plug/unplug and low-battery (≤20%) notifications are
+  handled separately by `polybar/scripts/battery-notify.sh`
+  (backgrounded from `autostart.sh`, exits as a no-op immediately if
+  there's no battery).
+- `autorandr/default/` is a monitor profile specific to this machine
+  (this monitor's EDID fingerprint + HDMI-0 layout) — not portable by
+  design. On another machine/monitor this profile just won't match
+  (autostart still runs fine, it just doesn't apply anything), so save
+  that machine's own profile instead: `autorandr --save <name>` after
+  setting up xrandr manually for its monitor. Workspaces 6-10 in
+  `i3/config` use `output right` (relative position, not a port name)
+  so routing to the second monitor keeps working on any hardware
+  without needing an edit.
+- The `XF86MonBrightnessUp`/`Down` keys in `i3/config` call
+  `brightnessctl` directly, so on a laptop that's already consistent
+  with the path `backlight.sh` uses. On this desktop it's practically
+  a no-op (no panel for `brightnessctl` to control) — repoint them to
+  `backlight.sh up`/`down` if you want the physical keys to control an
+  external monitor over DDC/CI too.
+- All icons are from Font Awesome, sourced via
+  `ttf-jetbrains-mono-nerd` with `otf-font-awesome` as a fallback
+  font.
+- `qt5ct.conf`, `qt6ct.conf`, `uad/config.toml`, `greenclip.toml`, and
+  `mount-image.desktop` have this machine's absolute paths baked into
+  a setting or two — repoint them if your username differs.
 
 ## Special thanks
 
-Tema GTK yang dipasangkan `installer/` di-*build* langsung dari repo
-upstream-nya masing-masing — bukan hasil kerja repo ini, cuma
-dipasangkan otomatis. Terima kasih buat para pembuatnya:
+The GTK themes `installer/` sets up are built straight from their own
+upstream repos — not this repo's work, just wired up automatically.
+Thanks to their authors:
 
-| Tema | Repo GitHub |
+| Theme | GitHub repo |
 | --- | --- |
 | Catppuccin | [Fausto-Korpsvart/Catppuccin-GTK-Theme](https://github.com/Fausto-Korpsvart/Catppuccin-GTK-Theme) |
 | Gruvbox | [Fausto-Korpsvart/Gruvbox-GTK-Theme](https://github.com/Fausto-Korpsvart/Gruvbox-GTK-Theme) |
@@ -214,8 +221,9 @@ dipasangkan otomatis. Terima kasih buat para pembuatnya:
 | Everforest | [Fausto-Korpsvart/Everforest-GTK-Theme](https://github.com/Fausto-Korpsvart/Everforest-GTK-Theme) |
 | Nordic | [EliverLara/Nordic](https://github.com/EliverLara/Nordic) |
 
-Dan tentunya seluruh maintainer [i3](https://i3wm.org/),
+And of course every maintainer of [i3](https://i3wm.org/),
 [polybar](https://github.com/polybar/polybar),
 [rofi](https://github.com/davatorium/rofi),
-[picom](https://github.com/yshui/picom), dan
-[ratatui](https://ratatui.rs) yang bikin semua ini bisa berdiri.
+[picom](https://github.com/yshui/picom), and
+[ratatui](https://ratatui.rs) that makes all of this possible to begin
+with.

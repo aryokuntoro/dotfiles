@@ -87,7 +87,7 @@ pub fn run(items: &[Item], home: &Path, tx: &Sender<Progress>, cancel: &AtomicBo
     for item in items.iter().filter(|i| i.checked) {
         if cancel.load(Ordering::Relaxed) {
             let _ = tx.send(Progress::Log(format!(
-                "Dibatalkan -- {} item sisanya dilewati.",
+                "Cancelled -- {} remaining item(s) skipped.",
                 items.iter().filter(|i| i.checked).count()
             )));
             let _ = tx.send(Progress::Cancelled);
@@ -115,7 +115,7 @@ pub fn run(items: &[Item], home: &Path, tx: &Sender<Progress>, cancel: &AtomicBo
                 let _ = tx.send(Progress::StepFailed);
             }
             Ok(Applied::Skipped) => {
-                let _ = tx.send(Progress::Log("  dilewati (jawaban: tidak)".to_string()));
+                let _ = tx.send(Progress::Log("  skipped (answered no)".to_string()));
                 let _ = tx.send(Progress::StepSkipped);
             }
             Ok(Applied::Done) => {}
@@ -125,7 +125,7 @@ pub fn run(items: &[Item], home: &Path, tx: &Sender<Progress>, cancel: &AtomicBo
 
     let _ = tx.send(Progress::Log(String::new()));
     let _ = tx.send(Progress::Log(
-        "Login sekali lagi (atau i3-msg restart) supaya i3/polybar/dunst baca config baru."
+        "Log in again (or i3-msg restart) so i3/polybar/dunst pick up the new config."
             .to_string(),
     ));
     let _ = tx.send(Progress::Finished);
@@ -399,7 +399,7 @@ pub fn run_packages(items: &[Item]) {
             Action::AurPackages => {
                 let has_paru = Command::new("paru").arg("--version").output().map(|o| o.status.success()).unwrap_or(false);
                 if !has_paru {
-                    println!("\n==> paru gak ketemu, bootstrap dulu (butuh sudo + base-devel/git)\n");
+                    println!("\n==> paru not found, bootstrapping it first (needs sudo + base-devel/git)\n");
                     let status = Command::new("sudo").args(["pacman", "-S", "--needed", "base-devel", "git"]).status();
                     if !report_status("pacman (base-devel/git)", status) {
                         continue;
@@ -424,7 +424,7 @@ pub fn run_packages(items: &[Item]) {
             _ => {}
         }
     }
-    println!("\nTekan Enter buat lanjut ke instalasi dotfiles...");
+    println!("\nPress Enter to continue to the dotfiles install...");
     let mut discard = String::new();
     let _ = io::stdin().read_line(&mut discard);
 }
@@ -433,11 +433,11 @@ fn report_status(what: &str, status: io::Result<std::process::ExitStatus>) -> bo
     match status {
         Ok(s) if s.success() => true,
         Ok(s) => {
-            println!("!! {what} keluar dengan {s}");
+            println!("!! {what} exited with {s}");
             false
         }
         Err(e) => {
-            println!("!! gagal jalanin {what}: {e}");
+            println!("!! failed to run {what}: {e}");
             false
         }
     }
@@ -483,12 +483,14 @@ mod tests {
         let items = vec![
             Item {
                 label: "config/i3".into(),
+                description: String::new(),
                 category: Category::Config,
                 checked: true,
                 action: Action::ConfigDir { name: "i3".into(), source: fake_repo.join("config/i3") },
             },
             Item {
                 label: "config/mimeapps.list".into(),
+                description: String::new(),
                 category: Category::Config,
                 checked: true,
                 action: Action::ConfigFile {
@@ -498,24 +500,28 @@ mod tests {
             },
             Item {
                 label: "home/xinitrc".into(),
+                description: String::new(),
                 category: Category::Home,
                 checked: true,
                 action: Action::HomeFile { name: "xinitrc".into(), source: fake_repo.join("home/xinitrc") },
             },
             Item {
                 label: "home/gitconfig".into(),
+                description: String::new(),
                 category: Category::Home,
                 checked: true,
                 action: Action::HomeFile { name: "gitconfig".into(), source: fake_repo.join("home/gitconfig") },
             },
             Item {
                 label: "applications".into(),
+                description: String::new(),
                 category: Category::Launchers,
                 checked: true,
                 action: Action::Applications { source: fake_repo.join("config/applications") },
             },
             Item {
                 label: "Nordic".into(),
+                description: String::new(),
                 category: Category::GtkThemes,
                 checked: true,
                 action: Action::GtkTheme(GtkTheme {
@@ -529,6 +535,7 @@ mod tests {
             // copy above.
             Item {
                 label: "Gruvbox".into(),
+                description: String::new(),
                 category: Category::GtkThemes,
                 checked: true,
                 action: Action::GtkTheme(crate::items::gtk_themes().remove(1)),
@@ -617,12 +624,14 @@ mod tests {
         let items = vec![
             Item {
                 label: "a.conf".into(),
+                description: String::new(),
                 category: Category::Config,
                 checked: true,
                 action: Action::ConfigFile { name: "a.conf".into(), source: fake_repo.join("a.conf") },
             },
             Item {
                 label: "b.conf".into(),
+                description: String::new(),
                 category: Category::Config,
                 checked: true,
                 action: Action::ConfigFile { name: "b.conf".into(), source: fake_repo.join("b.conf") },
@@ -677,12 +686,14 @@ mod tests {
         let items = vec![
             Item {
                 label: "a.conf".into(),
+                description: String::new(),
                 category: Category::Config,
                 checked: true,
                 action: Action::ConfigFile { name: "a.conf".into(), source: fake_repo.join(".config/a.conf") },
             },
             Item {
                 label: "b.conf".into(),
+                description: String::new(),
                 category: Category::Config,
                 checked: true,
                 action: Action::ConfigFile { name: "b.conf".into(), source: fake_repo.join(".config/b.conf") },

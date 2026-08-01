@@ -13,18 +13,12 @@ pub enum Screen {
     Done,
 }
 
-/// One rendered line in the checklist: either a non-selectable section
-/// header or an index into `App::items`.
-pub enum Row {
-    Header(Category),
-    Item(usize),
-}
-
 pub struct App {
     pub items: Vec<Item>,
-    pub rows: Vec<Row>,
-    /// Index into `rows`, always pointing at a `Row::Item` that's currently
-    /// visible under `search_query`.
+    /// Index into `Category::ALL` -- which tab is active.
+    pub current_tab: usize,
+    /// Index into `self.items`, always one that's visible in the current
+    /// tab + search filter.
     pub selected: usize,
     pub search_active: bool,
     pub search_query: String,
@@ -48,12 +42,10 @@ pub struct App {
 impl App {
     pub fn new(repo_root: PathBuf, home: PathBuf) -> Self {
         let items = items::collect(&repo_root);
-        let rows = build_rows(&items);
-        let selected = rows.iter().position(|r| matches!(r, Row::Item(_))).unwrap_or(0);
-        Self {
+        let mut app = Self {
             items,
-            rows,
-            selected,
+            current_tab: 0,
+            selected: 0,
             search_active: false,
             search_query: String::new(),
             screen: Screen::Checklist,
@@ -69,63 +61,54 @@ impl App {
             answer_tx: None,
             cancel: Arc::new(AtomicBool::new(false)),
             should_quit: false,
-        }
+        };
+        app.selected = app.visible_items().first().copied().unwrap_or(0);
+        app
     }
 
-    /// Row indices (into `self.rows`) currently shown, given
-    /// `search_query`: everything when empty, otherwise only items whose
-    /// label contains it (case-insensitive) plus the header above each
-    /// match -- an empty search never means "hide everything" the way an
-    /// empty checked-set would, so headers with zero matches are just
-    /// dropped instead of shown empty.
-    pub fn visible_rows(&self) -> Vec<usize> {
-        if self.search_query.is_empty() {
-            return (0..self.rows.len()).collect();
-        }
+    pub fn current_tab_category(&self) -> Category {
+        Category::ALL[self.current_tab]
+    }
+
+    /// Indices into `self.items` visible right now: on the active tab, and
+    /// (if a search is active) whose label matches it.
+    pub fn visible_items(&self) -> Vec<usize> {
+        let tab = self.current_tab_category();
         let query = self.search_query.to_lowercase();
-        let mut visible = Vec::new();
-        let mut pending_header = None;
-        for (i, row) in self.rows.iter().enumerate() {
-            match row {
-                Row::Header(_) => pending_header = Some(i),
-                Row::Item(idx) => {
-                    if self.items[*idx].label.to_lowercase().contains(&query) {
-                        if let Some(h) = pending_header.take() {
-                            visible.push(h);
-                        }
-                        visible.push(i);
-                    }
-                }
-            }
-        }
-        visible
+        (0..self.items.len())
+            .filter(|&i| self.items[i].category == tab)
+            .filter(|&i| query.is_empty() || self.items[i].label.to_lowercase().contains(&query))
+            .collect()
     }
 
     pub fn move_selection(&mut self, delta: i32) {
-        let visible_items: Vec<usize> = self
-            .visible_rows()
-            .into_iter()
-            .filter(|&i| matches!(self.rows[i], Row::Item(_)))
-            .collect();
-        if visible_items.is_empty() {
+        let visible = self.visible_items();
+        if visible.is_empty() {
             return;
         }
-        let current_pos = visible_items.iter().position(|&i| i == self.selected).unwrap_or(0) as i32;
-        let len = visible_items.len() as i32;
-        let next = (current_pos + delta).rem_euclid(len);
-        self.selected = visible_items[next as usize];
+        let pos = visible.iter().position(|&i| i == self.selected).unwrap_or(0) as i32;
+        let len = visible.len() as i32;
+        let next = (pos + delta).rem_euclid(len);
+        self.selected = visible[next as usize];
     }
 
-    /// Called whenever the search query changes: the previously selected
-    /// row may no longer be visible, so snap to the first visible one.
+    pub fn next_tab(&mut self) {
+        self.current_tab = (self.current_tab + 1) % Category::ALL.len();
+        self.reselect_after_filter_change();
+    }
+
+    pub fn prev_tab(&mut self) {
+        self.current_tab = (self.current_tab + Category::ALL.len() - 1) % Category::ALL.len();
+        self.reselect_after_filter_change();
+    }
+
+    /// Called whenever the tab or search query changes: the previously
+    /// selected item may no longer be visible, so snap to the first visible
+    /// one instead.
     fn reselect_after_filter_change(&mut self) {
-        let visible_items: Vec<usize> = self
-            .visible_rows()
-            .into_iter()
-            .filter(|&i| matches!(self.rows[i], Row::Item(_)))
-            .collect();
-        if !visible_items.contains(&self.selected) {
-            self.selected = visible_items.first().copied().unwrap_or(self.selected);
+        let visible = self.visible_items();
+        if !visible.contains(&self.selected) {
+            self.selected = visible.first().copied().unwrap_or(self.selected);
         }
     }
 
@@ -133,9 +116,9 @@ impl App {
         self.search_active = true;
     }
 
-    /// Esc: leave search entry AND clear the filter, showing everything
-    /// again -- distinct from Enter, which keeps the filter applied so a
-    /// narrowed-down view can still be browsed with j/k.
+    /// Esc: leave search entry AND clear the filter, showing everything on
+    /// this tab again -- distinct from Enter, which keeps the filter
+    /// applied so a narrowed-down view can still be browsed with j/k.
     pub fn cancel_search(&mut self) {
         self.search_active = false;
         self.search_query.clear();
@@ -156,37 +139,21 @@ impl App {
         self.reselect_after_filter_change();
     }
 
-    fn selected_item_index(&self) -> Option<usize> {
-        match self.rows.get(self.selected) {
-            Some(Row::Item(idx)) => Some(*idx),
-            _ => None,
-        }
-    }
-
     pub fn toggle_selected(&mut self) {
-        if let Some(idx) = self.selected_item_index()
-            && let Some(item) = self.items.get_mut(idx)
-        {
+        if let Some(item) = self.items.get_mut(self.selected) {
             item.checked = !item.checked;
         }
     }
 
     /// Toggles every currently visible item together (all-on if any are
-    /// off, all-off if all are already on) -- global under an empty search,
-    /// scoped to the filtered subset otherwise, so narrowing down to "gtk"
-    /// and pressing `a` only touches the GTK theme rows.
+    /// off, all-off if all are already on) -- scoped to the active tab, and
+    /// further to the search filter if one's applied, so narrowing "GTK
+    /// Themes" down to "gruvbox" and pressing `a` only touches that one.
     pub fn toggle_all(&mut self) {
-        let visible_idx: Vec<usize> = self
-            .visible_rows()
-            .into_iter()
-            .filter_map(|i| match self.rows[i] {
-                Row::Item(idx) => Some(idx),
-                Row::Header(_) => None,
-            })
-            .collect();
-        let all_checked = visible_idx.iter().all(|&idx| self.items[idx].checked);
-        for idx in visible_idx {
-            self.items[idx].checked = !all_checked;
+        let visible = self.visible_items();
+        let all_checked = visible.iter().all(|&i| self.items[i].checked);
+        for i in visible {
+            self.items[i].checked = !all_checked;
         }
     }
 
@@ -276,17 +243,4 @@ impl App {
             }
         }
     }
-}
-
-fn build_rows(items: &[Item]) -> Vec<Row> {
-    let mut rows = Vec::with_capacity(items.len() + 4);
-    let mut current: Option<Category> = None;
-    for (idx, item) in items.iter().enumerate() {
-        if current != Some(item.category) {
-            rows.push(Row::Header(item.category));
-            current = Some(item.category);
-        }
-        rows.push(Row::Item(idx));
-    }
-    rows
 }

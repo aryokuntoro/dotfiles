@@ -1,6 +1,6 @@
 use std::path::{Path, PathBuf};
 
-/// A checklist section header. Order here is display order.
+/// A checklist tab. Order here is tab order (Left/Right or h/l to switch).
 #[derive(Clone, Copy, PartialEq, Eq)]
 pub enum Category {
     Packages,
@@ -11,6 +11,10 @@ pub enum Category {
 }
 
 impl Category {
+    pub const ALL: [Category; 5] =
+        [Category::Packages, Category::Config, Category::Home, Category::Launchers, Category::GtkThemes];
+
+    /// Full description shown above the list on that tab.
     pub fn title(self) -> &'static str {
         match self {
             Category::Packages => "System packages (pacman/AUR, needs sudo)",
@@ -20,11 +24,25 @@ impl Category {
             Category::GtkThemes => "GTK themes (clone + build from GitHub)",
         }
     }
+
+    /// Short label for the tab bar itself.
+    pub fn tab_label(self) -> &'static str {
+        match self {
+            Category::Packages => "Packages",
+            Category::Config => "Config",
+            Category::Home => "Home",
+            Category::Launchers => "Launchers",
+            Category::GtkThemes => "GTK Themes",
+        }
+    }
 }
 
 /// One selectable row in the checklist.
 pub struct Item {
     pub label: String,
+    /// Shown in the preview pane when this item is highlighted -- what it
+    /// actually does, not just its name.
+    pub description: String,
     pub category: Category,
     pub checked: bool,
     pub action: Action,
@@ -75,7 +93,7 @@ pub enum BuildMethod {
     PlainCopy,
 }
 
-/// Kept in sync by hand with README.md's "Paket yang dibutuhkan" section --
+/// Kept in sync by hand with README.md's "Required packages" section --
 /// update both if this list changes.
 pub const PACMAN_PACKAGES: &[&str] = &[
     "i3-wm", "polybar", "rofi", "dunst", "picom", "thunar", "thunar-archive-plugin",
@@ -102,16 +120,24 @@ pub fn collect(repo_root: &Path) -> Vec<Item> {
     // Off by default, unlike everything else here: this is the one part of
     // the checklist that runs `sudo` and touches the system outside $HOME,
     // so re-running the installer later (the common case -- see README's
-    // "aman dijalankan berkali-kali") shouldn't ambush anyone with a sudo
-    // prompt and a package (re)install they didn't ask for this time.
+    // "safe to run repeatedly") shouldn't ambush anyone with a sudo prompt
+    // and a package (re)install they didn't ask for this time.
     items.push(Item {
-        label: format!("pacman -S --needed ({} paket)", PACMAN_PACKAGES.len()),
+        label: format!("pacman -S --needed ({} packages)", PACMAN_PACKAGES.len()),
+        description: format!(
+            "sudo pacman -S --needed {}\n\nOfficial packages needed by i3/polybar/rofi/dunst/picom/Thunar and friends. --needed means anything already installed gets skipped, safe to re-run.",
+            PACMAN_PACKAGES.join(" ")
+        ),
         category: Category::Packages,
         checked: false,
         action: Action::PacmanPackages,
     });
     items.push(Item {
-        label: format!("paru -S ({} paket AUR, install paru dulu kalau belum ada)", AUR_PACKAGES.len()),
+        label: format!("paru -S ({} AUR packages, bootstraps paru first if missing)", AUR_PACKAGES.len()),
+        description: format!(
+            "paru -S {}\n\nPackages from the AUR (betterlockscreen, greenclip, etc). If paru isn't on PATH yet, it's bootstrapped automatically first: pacman -S base-devel git, clone the AUR repo, makepkg -si.",
+            AUR_PACKAGES.join(" ")
+        ),
         category: Category::Packages,
         checked: false,
         action: Action::AurPackages,
@@ -140,6 +166,9 @@ pub fn collect(repo_root: &Path) -> Vec<Item> {
         let name = source.file_name().unwrap().to_string_lossy().into_owned();
         items.push(Item {
             label: name.clone(),
+            description: format!(
+                "config/{name}/ -> ~/.config/{name}/\n\nThe whole folder is copied as-is. If ~/.config/{name} already exists with different content, you'll be asked before it's overwritten (backed up automatically)."
+            ),
             category: Category::Config,
             checked: true,
             action: Action::ConfigDir { name, source },
@@ -149,6 +178,9 @@ pub fn collect(repo_root: &Path) -> Vec<Item> {
         let name = source.file_name().unwrap().to_string_lossy().into_owned();
         items.push(Item {
             label: name.clone(),
+            description: format!(
+                "config/{name} -> ~/.config/{name}\n\nA loose file, same rule as a folder: different content prompts first, identical content is skipped silently."
+            ),
             category: Category::Config,
             checked: true,
             action: Action::ConfigFile { name, source },
@@ -160,8 +192,14 @@ pub fn collect(repo_root: &Path) -> Vec<Item> {
         home_files.sort();
         for source in home_files {
             let name = source.file_name().unwrap().to_string_lossy().into_owned();
+            let description = if name == "gitconfig" {
+                "home/gitconfig -> ~/.gitconfig\n\nSPECIAL CASE: if ~/.gitconfig already exists, it is NEVER overwritten (not even asked about) -- it holds this machine's local user.name/user.email, which aren't in the repo.".to_string()
+            } else {
+                format!("home/{name} -> ~/.{name}\n\nA loose dotfile in the home directory. Different content prompts first, identical content is skipped.")
+            };
             items.push(Item {
                 label: format!(".{name}"),
+                description,
                 category: Category::Home,
                 checked: true,
                 action: Action::HomeFile { name, source },
@@ -174,6 +212,9 @@ pub fn collect(repo_root: &Path) -> Vec<Item> {
         let count = std::fs::read_dir(&apps_dir).map(|d| d.count()).unwrap_or(0);
         items.push(Item {
             label: format!("{count} launcher entries"),
+            description: format!(
+                "config/applications/* -> ~/.local/share/applications/*\n\n{count} .desktop files, copied one at a time (not a wholesale folder replace) since that directory is shared with other apps' launcher entries too."
+            ),
             category: Category::Launchers,
             checked: true,
             action: Action::Applications { source: apps_dir },
@@ -182,8 +223,19 @@ pub fn collect(repo_root: &Path) -> Vec<Item> {
 
     for theme in gtk_themes() {
         let owner_repo = theme.repo_url.trim_start_matches("https://github.com/").trim_end_matches(".git");
+        let build_desc = match &theme.build {
+            BuildMethod::PlainCopy => "The repo ships pre-built, just copied straight into ~/.themes.".to_string(),
+            BuildMethod::ViceliuceInstaller(runs) => format!(
+                "Built via the repo's own install.sh, {} run(s) (every accent x dark/light).",
+                runs.len()
+            ),
+        };
         items.push(Item {
             label: format!("{} (via {owner_repo})", theme.name),
+            description: format!(
+                "git clone {}\n\n{build_desc}\n\nUsed by theme-switch.sh ($mod+F2) and the accent picker ($mod+F8) -- without this, both rofi menus still work but won't find the theme's folder.",
+                theme.repo_url
+            ),
             category: Category::GtkThemes,
             checked: true,
             action: Action::GtkTheme(theme),

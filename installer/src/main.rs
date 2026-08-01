@@ -61,6 +61,8 @@ fn run(terminal: &mut Terminal<CrosstermBackend<io::Stdout>>, app: &mut App) -> 
                     Screen::Checklist => match key.code {
                         KeyCode::Up | KeyCode::Char('k') => app.move_selection(-1),
                         KeyCode::Down | KeyCode::Char('j') => app.move_selection(1),
+                        KeyCode::Left | KeyCode::Char('h') | KeyCode::BackTab => app.prev_tab(),
+                        KeyCode::Right | KeyCode::Char('l') | KeyCode::Tab => app.next_tab(),
                         KeyCode::Char(' ') => app.toggle_selected(),
                         KeyCode::Char('a') => app.toggle_all(),
                         KeyCode::Char('/') => app.enter_search(),
