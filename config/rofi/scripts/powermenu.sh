@@ -2,9 +2,6 @@
 
 # ── Rofi Power Menu ────────────────────────────────────────────
 
-dir="~/.config/rofi/icons"
-confirm_exit="confirm"
-
 # Options -- icon glyphs only, no text label
 shutdown=$''
 reboot=$''

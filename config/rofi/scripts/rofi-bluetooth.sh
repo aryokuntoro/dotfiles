@@ -190,13 +190,18 @@ print_status() {
     if power_on; then
         printf ''
 
-        paired_devices_cmd="devices Paired"
+        # An array, not a string: "devices Paired" has to reach
+        # bluetoothctl as two separate arguments, which only worked
+        # before because the unquoted expansion word-split it. Quoting
+        # that string would have passed it as one argument and broken
+        # the call, so keep the two forms as proper argument lists.
+        paired_devices_cmd=(devices Paired)
         # Check if an outdated version of bluetoothctl is used to preserve backwards compatibility
         if (( $(echo "$(bluetoothctl version | cut -d ' ' -f 2) < 5.65" | bc -l) )); then
-            paired_devices_cmd="paired-devices"
+            paired_devices_cmd=(paired-devices)
         fi
 
-        mapfile -t paired_devices < <(bluetoothctl $paired_devices_cmd | grep Device | cut -d ' ' -f 2)
+        mapfile -t paired_devices < <(bluetoothctl "${paired_devices_cmd[@]}" | grep Device | cut -d ' ' -f 2)
         counter=0
 
         for device in "${paired_devices[@]}"; do

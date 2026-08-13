@@ -11,7 +11,12 @@
 # Notifies on charger plug/unplug and once when battery drops to
 # LOW_AT% while discharging (re-armed the next time charging starts).
 
-BAT=$(ls /sys/class/power_supply 2>/dev/null | grep -m1 '^BAT')
+BAT=""
+for bat_path in /sys/class/power_supply/BAT*; do
+    [ -e "$bat_path" ] || continue   # no match -- the glob stayed literal
+    BAT=${bat_path##*/}
+    break
+done
 [ -z "$BAT" ] && exit 0
 
 LOW_AT=20

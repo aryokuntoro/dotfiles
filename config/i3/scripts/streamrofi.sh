@@ -8,7 +8,7 @@ if [ -f "$pidfile" ]; then
     choice=$(echo -e "  Stop Stream\n  Cancel" | rofi -dmenu -i -p "Stream Active:" \
         -theme ~/.config/rofi/themes/current.rasi -no-config -lines 2)
     if [[ "$choice" == *"Stop"* ]]; then
-        kill $(cat "$pidfile") 2>/dev/null
+        kill "$(cat "$pidfile")" 2>/dev/null
         rm -f "$pidfile"
         notify-send "  Stream" "Stopped."
     fi

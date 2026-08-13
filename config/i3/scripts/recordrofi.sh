@@ -6,6 +6,16 @@ mkdir -p "$dir"
 timestamp=$(date +"%Y%m%d_%H%M%S")
 output="$dir/recording_$timestamp.mp4"
 pidfile="/tmp/ffmpeg_record.pid"
+
+# The pidfile holds two lines: the ffmpeg pid, and the file it is
+# actually writing. Both are needed at stop time -- $output and
+# $timestamp above are recomputed on every run of this script, so the
+# stop branch used to report a filename that was generated seconds
+# earlier and never existed on disk (and always ".mp4", even when the
+# recording in progress was a GIF).
+save_rec() {
+    printf '%s\n%s\n' "$1" "$2" > "$pidfile"
+}
 theme="$HOME/.config/rofi/themes/current.rasi"
 
 # Check if already recording
@@ -13,9 +23,10 @@ if [ -f "$pidfile" ]; then
     choice=$(echo -e "  Stop Recording\n  Cancel" | rofi -dmenu -i -p "Recording Active:" \
         -theme "$theme" -no-config -lines 2)
     if [[ "$choice" == *"Stop"* ]]; then
-        kill $(cat "$pidfile") 2>/dev/null
+        { read -r rec_pid; read -r rec_file; } < "$pidfile"
+        kill "$rec_pid" 2>/dev/null
         rm -f "$pidfile"
-        notify-send "  Recording" "Stopped. Saved: $output"
+        notify-send "  Recording" "Stopped. Saved: ${rec_file:-$dir}"
     fi
     exit 0
 fi
@@ -82,7 +93,7 @@ case "$choice" in
     *Full\ Screen\ Video*)
         ffmpeg -f x11grab -video_size "$res" -framerate "$framerate" -i "$DISPLAY" \
             ${scale_vf:+-vf "$scale_vf"} "${vcodec_opts[@]}" "$output" -y &
-        echo $! > "$pidfile"
+        save_rec "$!" "$output"
         notify-send "  Recording" "Started: Full Screen Video"
         ;;
     *Select\ Area\ Video*)
@@ -91,7 +102,7 @@ case "$choice" in
             IFS=',' read -r x y w h <<< "$selection"
             ffmpeg -f x11grab -video_size "${w}x${h}" -framerate "$framerate" \
                 -i "$DISPLAY+$x,$y" ${scale_vf:+-vf "$scale_vf"} "${vcodec_opts[@]}" "$output" -y &
-            echo $! > "$pidfile"
+            save_rec "$!" "$output"
             notify-send "  Recording" "Started: Select Area Video"
         fi
         ;;
@@ -99,7 +110,7 @@ case "$choice" in
         ffmpeg -f x11grab -video_size "$res" -framerate "$framerate" -i "$DISPLAY" \
             -f pulse -i default ${scale_vf:+-vf "$scale_vf"} "${vcodec_opts[@]}" \
             -c:a aac -b:a 128k "$output" -y &
-        echo $! > "$pidfile"
+        save_rec "$!" "$output"
         notify-send "  Recording" "Started: Full Screen + Audio"
         ;;
     *Select\ Area\ +\ Audio*)
@@ -109,7 +120,7 @@ case "$choice" in
             ffmpeg -f x11grab -video_size "${w}x${h}" -framerate "$framerate" \
                 -i "$DISPLAY+$x,$y" -f pulse -i default \
                 ${scale_vf:+-vf "$scale_vf"} "${vcodec_opts[@]}" -c:a aac -b:a 128k "$output" -y &
-            echo $! > "$pidfile"
+            save_rec "$!" "$output"
             notify-send "  Recording" "Started: Select Area + Audio"
         fi
         ;;
@@ -125,7 +136,7 @@ case "$choice" in
             -f v4l2 -video_size "$webcam_res" -i /dev/video0 \
             -filter_complex "$filter" \
             "${vcodec_opts[@]}" "$output" -y &
-        echo $! > "$pidfile"
+        save_rec "$!" "$output"
         notify-send "  Recording" "Started: Full Screen + Webcam"
         ;;
     *Select\ Area\ +\ Webcam*)
@@ -144,7 +155,7 @@ case "$choice" in
                 -f v4l2 -video_size "$webcam_res" -i /dev/video0 \
                 -filter_complex "$filter" \
                 "${vcodec_opts[@]}" "$output" -y &
-            echo $! > "$pidfile"
+            save_rec "$!" "$output"
             notify-send "  Recording" "Started: Select Area + Webcam"
         fi
         ;;
@@ -152,7 +163,7 @@ case "$choice" in
         gif_output="$dir/recording_$timestamp.gif"
         ffmpeg -f x11grab -video_size "$res" -framerate "$gif_fps" -i "$DISPLAY" \
             -vf "fps=$gif_fps,scale=$gif_width:-1:flags=lanczos" -loop 0 "$gif_output" -y &
-        echo $! > "$pidfile"
+        save_rec "$!" "$gif_output"
         notify-send "  Recording" "Started: GIF Full Screen"
         ;;
     *GIF\ Select\ Area*)
@@ -163,7 +174,7 @@ case "$choice" in
             ffmpeg -f x11grab -video_size "${w}x${h}" -framerate "$gif_fps" \
                 -i "$DISPLAY+$x,$y" -vf "fps=$gif_fps,scale=$gif_width:-1:flags=lanczos" \
                 -loop 0 "$gif_output" -y &
-            echo $! > "$pidfile"
+            save_rec "$!" "$gif_output"
             notify-send "  Recording" "Started: GIF Select Area"
         fi
         ;;
