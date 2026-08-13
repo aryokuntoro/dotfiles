@@ -130,6 +130,8 @@ config), then `$mod+F2` to pick an initial theme.
 │   ├── gtk-3.0/, gtk-4.0/, qt5ct/, qt6ct/    GTK/Qt theming
 │   ├── autorandr/           this machine's monitor profile
 │   ├── applications/        -> ~/.local/share/applications (installed one file at a time)
+│   │                        vim.desktop here is a NoDisplay override that hides the
+│   │                        packaged /usr/share one, so only vim-kitty.desktop is listed
 │   └── ...                  autostart, btop, htop, mpv, qalculate, Thunar, uad, xarchiver, + a few loose files
 ├── home/                    -> ~/.<file>
 │   └── xinitrc, Xresources, bashrc, bash_profile, bash_logout, gitconfig
@@ -328,6 +330,39 @@ Restart Windows afterward.
   `i3/config` use `output right` (relative position, not a port name)
   so routing to the second monitor keeps working on any hardware
   without needing an edit.
+- UI scale (`$mod+F5` → a display → *Scale*) is done by **DPI**, not by
+  `xrandr --scale`. `--scale` renders the desktop into a smaller
+  framebuffer and lets the GPU stretch it back to the panel (150% =
+  1280x720 blown up to 1080p), which magnifies every pixel — polybar
+  grows out of proportion and the whole screen goes soft. The menu
+  writes `Xft.dpi` to `~/.Xresources` (merged at login by
+  `autostart.sh`, so it survives a reboot) plus `gtk-xft-dpi` to
+  `gtk-3.0`/`gtk-4.0/settings.ini`, then restarts i3, and clears any
+  leftover `--scale` transform on the output first. Everything that
+  reads a DPI scales by the same factor: polybar takes its `dpi-x`/
+  `dpi-y` from `${xrdb:Xft.dpi:96}` (it has no Xft.dpi fallback of its
+  own — left unset it guesses from the EDID's physical size, ~69 dpi on
+  this TV). Only what gets restarted resizes immediately; already-open
+  kitty/GTK/Qt windows keep the old size until relaunched. For bigger
+  GTK *widgets* (not just text) at high DPI, the theme repos also ship
+  `-hdpi`/`-xhdpi` variants — point `gtk-theme-name` at one of those.
+- Each row of that Scale menu shows the dpi it sets and the **logical
+  resolution** left at that scale (1920x1080 at 150% leaves 1280x720 of
+  room for windows), and one row is tagged *recommended*. That
+  suggestion is computed per display, from the EDID: real pixel density
+  (px ÷ physical mm) plus a viewing distance guessed from the diagonal,
+  solved against a 96 dpi / 60 cm desk baseline. So a 24" 1080p monitor
+  suggests 100%, a 14" 1080p laptop 125%, a 27" 4K 175%, this 32" TV
+  150%, and a 55" 4K TV 200%. It's a starting point, not a measurement
+  — a 43"-ish panel is genuinely ambiguous (desk monitor or TV?) and is
+  assumed to be a TV. Projectors publish no panel size, so they get no
+  suggestion at all and the prompt says so.
+- **One DPI, one X screen.** X11 has no per-output DPI (that's a
+  Wayland feature), so with two displays of different densities plugged
+  in, `Xft.dpi` is still a single global value and one of them will be
+  a compromise — pick the scale for whichever you actually work on.
+  Nothing applies a DPI automatically on hotplug either: `autorandr`
+  restores the *layout*, and the scale stays where you last set it.
 - The `XF86MonBrightnessUp`/`Down` keys in `i3/config` call
   `brightnessctl` directly, so on a laptop that's already consistent
   with the path `backlight.sh` uses. On this desktop it's practically

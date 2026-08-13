@@ -22,7 +22,7 @@
     horizontal_padding = 12
     text_icon_padding = 12
     frame_width = 2
-    frame_color = "#ca9ee6"
+    frame_color = "#83c092"
     separator_color = frame
     sort = yes
     idle_threshold = 120
@@ -50,26 +50,26 @@
     icon_path = /usr/share/icons/Papirus-Dark/32x32/status:/usr/share/icons/Papirus-Dark/32x32/devices:/usr/share/icons/Papirus-Dark/32x32/apps
 
     # ── Colors (set by theme-switch.sh) ────────────────────────
-    background = "#303446"
-    foreground = "#c6d0f5"
+    background = "#2d353b"
+    foreground = "#d3c6aa"
 
 [urgency_low]
-    background = "#303446"
-    foreground = "#c6d0f5"
+    background = "#2d353b"
+    foreground = "#d3c6aa"
     timeout = 5
-    frame_color = "#8caaee"
+    frame_color = "#7fbbb3"
 
 [urgency_normal]
-    background = "#303446"
-    foreground = "#c6d0f5"
+    background = "#2d353b"
+    foreground = "#d3c6aa"
     timeout = 10
-    frame_color = "#ca9ee6"
+    frame_color = "#83c092"
 
 [urgency_critical]
-    background = "#e78284"
-    foreground = "#303446"
+    background = "#e67e80"
+    foreground = "#2d353b"
     timeout = 0
-    frame_color = "#e78284"
+    frame_color = "#e67e80"
 
 # ── Special Rules ──────────────────────────────────────────────
 [spotify]

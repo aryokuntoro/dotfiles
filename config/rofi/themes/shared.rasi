@@ -1,13 +1,13 @@
 * {
     font: "JetBrainsMono NF Bold 9";
-    background: #303446;
-    background-alt: #292c3c;
-    bg-hover: #414559;
-    foreground: #c6d0f5;
-    foreground-alt: #b5bfe2;
-    accent: #ca9ee6;
-    accent2: #8caaee;
-    selected: #414559;
-    active: #a6d189;
-    urgent: #e78284;
+    background: #2d353b;
+    background-alt: #343f44;
+    bg-hover: #3d484d;
+    foreground: #d3c6aa;
+    foreground-alt: #859289;
+    accent: #83c092;
+    accent2: #e69875;
+    selected: #3d484d;
+    active: #a7c080;
+    urgent: #e67e80;
 }

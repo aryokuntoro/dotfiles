@@ -13,3 +13,4 @@ text/plain=vim-kitty.desktop;vim.desktop;
 application/zip=xarchiver.desktop;
 application/x-zerosize=vim-kitty.desktop;vim.desktop;
 image/png=feh.desktop;
+application/json=vim-kitty.desktop;

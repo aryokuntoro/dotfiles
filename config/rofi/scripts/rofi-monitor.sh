@@ -90,6 +90,44 @@ current_mode() {
     '
 }
 
+# Pixel resolution the output is running right now, as "1920x1080".
+# Empty if the output is off (no geometry on its xrandr line).
+output_px() {
+    xrandr --query | grep -m1 "^$1 connected" | grep -oP '\d+x\d+(?=\+)'
+}
+
+# Physical panel size as "<width_mm> <height_mm>", taken from the
+# "708mm x 398mm" xrandr prints from the output's EDID. Prints "0 0"
+# when the display publishes no usable size -- projectors mostly,
+# which have no panel to measure, but also anything behind an HDMI
+# switch or capture box that rewrites the EDID.
+output_size_mm() {
+    local mm
+    mm=$(xrandr --query | grep -m1 "^$1 connected" | grep -oP '\d+(?=mm)' | paste -sd' ' -)
+    if [ -n "$mm" ]; then
+        echo "$mm"
+    else
+        echo "0 0"
+    fi
+}
+
+# The panel's real pixel density across its width. 0 when unknown.
+physical_dpi() {
+    local px mm
+    px=$(output_px "$1" | cut -dx -f1)
+    mm=$(output_size_mm "$1" | cut -d' ' -f1)
+    [[ "$px" =~ ^[0-9]+$ ]] && [ "${mm:-0}" -gt 0 ] || { echo 0; return; }
+    awk -v p="$px" -v m="$mm" 'BEGIN { printf "%d", p / (m / 25.4) + 0.5 }'
+}
+
+# Panel diagonal in inches. 0 when the EDID has no size.
+diagonal_inches() {
+    local w h
+    read -r w h <<< "$(output_size_mm "$1")"
+    [ "${w:-0}" -gt 0 ] && [ "${h:-0}" -gt 0 ] || { echo 0; return; }
+    awk -v w="$w" -v h="$h" 'BEGIN { printf "%d", sqrt(w*w + h*h) / 25.4 + 0.5 }'
+}
+
 # All "<res>@<rate>Hz" combos this output supports, one per line.
 list_modes() {
     local output="$1"
@@ -166,25 +204,205 @@ resolution_menu() {
     esac
 }
 
+# The scale steps the menu offers, as Xft.dpi values (96 = 100%).
+dpi_steps="96 120 144 168 192"
+
+# Current UI scale, as a DPI number. 96 is the unscaled baseline.
+current_dpi() {
+    local dpi
+    dpi=$(xrdb -query 2>/dev/null | awk -F':[[:space:]]*' '/^Xft\.dpi/ {print $2}')
+    [[ "$dpi" =~ ^[0-9]+$ ]] && echo "$dpi" || echo 96
+}
+
+# The DPI this particular display probably wants, snapped to one of
+# the steps above. 0 when there's nothing to base a guess on.
+#
+# Scaling is really a question of *angular* size, not pixel density: a
+# 24" desk monitor and a 32" TV can have the same dpi and still need
+# very different UI sizes, because one is at arm's length and the
+# other is across the room. So take the panel's real density from its
+# EDID, guess the viewing distance from its diagonal, and solve for
+# the scale that makes a UI element look the same size as it does at
+# the desk-monitor baseline (96 dpi seen from 60cm):
+#
+#   dpi = physical_dpi x distance_m / 0.6
+#
+# For this TV -- 1920px across 708mm, so ~69 real dpi at 32", used
+# from about a metre away -- that lands on 144, which is where the
+# menu's own 150% entry sits. A 24" 1080p monitor lands back on 96,
+# and a 27" 4K panel on 192.
+#
+# A projector reports no EDID size (there's no panel), so it gets no
+# recommendation rather than a made-up one: its image is already metres
+# wide and 100% is usually right.
+recommended_dpi() {
+    local pdpi diag dist
+    pdpi=$(physical_dpi "$1")
+    diag=$(diagonal_inches "$1")
+    [ "$pdpi" -gt 0 ] && [ "$diag" -gt 0 ] || { echo 0; return; }
+
+    # Assumed viewing distance in metres, guessed from the diagonal --
+    # the only usage hint the EDID gives. The jump at 28" is deliberate
+    # and abrupt rather than a smooth curve: below it a display is
+    # almost always a panel at arm's length, above it almost always a
+    # TV somewhere across a desk or a room, and there's no continuum of
+    # real setups in between to interpolate over. 43-ish is the one
+    # genuinely ambiguous size (a 43" 4K is sold both as a desk monitor
+    # and as a TV) -- it gets the TV distance, so check the number it
+    # suggests rather than taking it on faith there.
+    if   [ "$diag" -lt 17 ]; then dist=0.5   # laptop panel
+    elif [ "$diag" -lt 28 ]; then dist=0.6   # desk monitor, arm's length
+    elif [ "$diag" -lt 34 ]; then dist=1.2   # TV used as a desk display
+    elif [ "$diag" -lt 50 ]; then dist=1.8   # big TV, back of the desk
+    else                          dist=2.2   # TV across the room
+    fi
+
+    awk -v p="$pdpi" -v d="$dist" -v steps="$dpi_steps" 'BEGIN {
+        want = p * d / 0.6
+        n = split(steps, s, " ")
+        best = s[1]
+        for (i = 1; i <= n; i++) {
+            cur = (s[i] > want) ? s[i] - want : want - s[i]
+            ref = (best > want) ? best - want : want - best
+            if (cur < ref) best = s[i]
+        }
+        print best
+    }'
+}
+
+# One row of the Scale menu: the percentage large, and underneath the
+# things that actually decide the choice -- the dpi it sets and how
+# much logical desktop is left at that scale (a 1920x1080 panel at
+# 150% has only 1280x720 worth of room for windows).
+scale_row() {
+    local dpi="$1" px_w="$2" px_h="$3" rec="$4" cur="$5" tag=""
+    [ "$dpi" = "$cur" ] && tag="$tag  ·  current"
+    [ "$dpi" = "$rec" ] && tag="$tag  ·  recommended"
+    printf '<span weight="bold" size="large">%s%%</span>   <span size="small" alpha="75%%">%s dpi  ·  %sx%s logical</span><span size="small" weight="bold">%s</span>' \
+        "$((dpi * 100 / 96))" "$dpi" "$((px_w * 96 / dpi))" "$((px_h * 96 / dpi))" "$tag"
+}
+
+# Scaling is done by DPI, not by `xrandr --scale`.
+#
+# `--scale` shrinks the framebuffer and has the GPU stretch it back up
+# to the panel (150% meant rendering the whole desktop at 1280x720 and
+# bilinear-upscaling it onto a 1080p screen). That magnifies every
+# pixel -- polybar included -- so the bar grows out of proportion and
+# the entire desktop goes soft. Raising the DPI instead keeps the
+# framebuffer at the panel's native resolution and asks each toolkit
+# to draw its own text and UI larger, so everything stays sharp and
+# scales by the same factor.
+#
+# The value has to be written to more than one place because there is
+# no single scaling knob on X11: Xft.dpi covers Xft consumers and
+# polybar (its config reads ${xrdb:Xft.dpi:96}), while GTK reads its
+# own gtk-xft-dpi from settings.ini and would otherwise sit at 96
+# while everything else scaled.
+#
+# Toolkits read the DPI once at startup, so only what gets restarted
+# here changes size immediately; already-running kitty/GTK/Qt windows
+# keep the old size until they are relaunched.
+set_dpi() {
+    local dpi="$1"
+
+    # ~/.Xresources is the persistent copy -- autostart.sh merges it
+    # into the X server on every login, so this survives a reboot.
+    if grep -q '^Xft\.dpi:' "$HOME/.Xresources" 2>/dev/null; then
+        sed -i "s/^Xft\.dpi:.*/Xft.dpi: $dpi/" "$HOME/.Xresources"
+    else
+        printf 'Xft.dpi: %s\n' "$dpi" >> "$HOME/.Xresources"
+    fi
+    printf 'Xft.dpi: %s\n' "$dpi" | xrdb -merge
+
+    # GTK wants the DPI in 1024ths of a point.
+    local gtk_dpi=$((dpi * 1024))
+    local ini
+    for ini in "$HOME/.config/gtk-3.0/settings.ini" "$HOME/.config/gtk-4.0/settings.ini"; do
+        [ -f "$ini" ] || continue
+        if grep -qE '^gtk-xft-dpi[[:space:]]*=' "$ini"; then
+            sed -i -E "s/^gtk-xft-dpi[[:space:]]*=.*/gtk-xft-dpi=$gtk_dpi/" "$ini"
+        else
+            sed -i "/^\[Settings\]/a gtk-xft-dpi=$gtk_dpi" "$ini"
+        fi
+    done
+
+    # i3 re-reads its pango font, and its exec_always restarts
+    # autostart.sh, which brings polybar and dunst back up at the new
+    # DPI too.
+    i3-msg restart >/dev/null 2>&1
+}
+
 scale_menu() {
     local output="$1"
-    local options="100% (native)\n125%\n150%\n175%\n200%\n$divider\n$goback\nExit"
+    local res px_w px_h cur rec pdpi diag prompt options="" d
 
-    chosen=$(echo -e "$options" | $rofi_command "Scale: $output")
-    local factor=""
+    res=$(output_px "$output")
+    px_w=${res%x*}
+    px_h=${res#*x}
+    if ! [[ "$px_w" =~ ^[0-9]+$ ]]; then
+        # Output is off, so there's no mode to divide down. Xft.dpi is
+        # one global value for the whole X screen anyway (X11 has no
+        # per-output DPI -- that's a Wayland thing), so scaling from a
+        # dark output is legal, just show the numbers for the screen.
+        res=$(xrandr --query | grep -m1 '^Screen' | grep -oP 'current \K\d+ x \d+' | tr -d ' ')
+        px_w=${res%x*}
+        px_h=${res#*x}
+    fi
+    # Last resort. Every row divides by these, so letting a non-number
+    # through here would blow up the whole menu on an arithmetic error
+    # rather than just showing a slightly wrong logical size.
+    [[ "$px_w" =~ ^[1-9][0-9]*$ ]] || { px_w=1920; px_h=1080; res="1920x1080"; }
+    [[ "$px_h" =~ ^[1-9][0-9]*$ ]] || { px_w=1920; px_h=1080; res="1920x1080"; }
+
+    cur=$(current_dpi)
+    rec=$(recommended_dpi "$output")
+    pdpi=$(physical_dpi "$output")
+    diag=$(diagonal_inches "$output")
+
+    # Prompt carries what the recommendation was derived from, so the
+    # suggested row isn't just an unexplained label.
+    prompt="Scale: $(monitor_label "$output")  ·  $res"
+    if [ "$pdpi" -gt 0 ]; then
+        prompt="$prompt  ·  ${diag}in, ${pdpi}dpi panel"
+    elif ! is_active "$output"; then
+        # xrandr only prints the physical size for an output that is
+        # driving a mode, so "no size" on a dark output means nothing
+        # about its EDID -- don't accuse it of being a projector.
+        prompt="$prompt  ·  output off, showing screen size"
+    else
+        prompt="$prompt  ·  no EDID size (projector?)"
+    fi
+
+    for d in $dpi_steps; do
+        options="${options}$(scale_row "$d" "$px_w" "$px_h" "$rec" "$cur")\n"
+    done
+    options="${options}$divider\n$goback\nExit"
+
+    chosen=$(echo -e "$options" | $rofi_command "$prompt")
     case "$chosen" in
-        "100% (native)") factor="1" ;;
-        "125%") factor="0.8" ;;
-        "150%") factor="0.6666" ;;
-        "175%") factor="0.5714" ;;
-        "200%") factor="0.5" ;;
         "$goback" | "" | "$divider") monitor_menu "$output"; return ;;
         "Exit") exit 0 ;;
     esac
 
-    if [ -n "$factor" ]; then
-        xrandr --output "$output" --scale "${factor}x${factor}" --filter bilinear
-        apply "$output scale set to $chosen"
+    # Rows are pango markup, so read the choice back off the one
+    # unambiguous number in it rather than matching the whole string.
+    local dpi
+    dpi=$(printf '%s' "$chosen" | grep -oP '\d+(?= dpi)' | head -1)
+    if [[ "$dpi" =~ ^[0-9]+$ ]]; then
+        # Clear any framebuffer scaling left over from the older
+        # `--scale` approach (or restored from a profile saved back
+        # then) -- the two stack, and the leftover transform would
+        # keep the picture blurry no matter what the DPI says.
+        xrandr --output "$output" --scale 1x1 --filter nearest
+        # Persist the layout *before* touching the DPI. set_dpi ends
+        # with an i3 restart, and i3's exec_always fires autostart.sh,
+        # which runs `autorandr --change` -- letting that overlap with
+        # apply()'s `autorandr --save` is a read/write race on the same
+        # profile. Polybar is relaunched by both, which is harmless:
+        # launch.sh serialises itself with a flock, and the one that
+        # runs after the restart is the one that picks up the new DPI.
+        apply "$output scale set to $((dpi * 100 / 96))% ($dpi dpi)"
+        set_dpi "$dpi"
     fi
     monitor_menu "$output"
 }
@@ -382,7 +600,16 @@ show_menu() {
                     *)
                         local target
                         target=$(echo "$pick" | grep -oP '\(\K[^)]+(?=\)$)')
-                        [ -n "$target" ] && extend_menu "$target" || show_menu
+                        # Not `A && B || C`: extend_menu ends in a menu
+                        # call whose exit status is whatever the user's
+                        # last action returned, so a non-zero one there
+                        # would have fallen through and opened show_menu
+                        # a second time on top of it.
+                        if [ -n "$target" ]; then
+                            extend_menu "$target"
+                        else
+                            show_menu
+                        fi
                         ;;
                 esac
             else

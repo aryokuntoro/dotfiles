@@ -1,25 +1,25 @@
 ! ── Xresources ────────────────────────────────────────────────
 ! Colors set by apply-theme-colors.sh from the active rofi .rasi theme
 ! COLORS-START
-*.background:  #303446
-*.foreground:  #c6d0f5
-*.cursorColor: #c6d0f5
-*.color0:      #303446
-*.color8:      #292c3c
-*.color1:      #e78284
-*.color9:      #e78284
-*.color2:      #a6d189
-*.color10:     #a6d189
-*.color3:      #e5c890
-*.color11:     #e5c890
-*.color4:      #8caaee
-*.color12:     #8caaee
-*.color5:      #ca9ee6
-*.color13:     #ca9ee6
-*.color6:      #81c8be
-*.color14:     #81c8be
-*.color7:      #b5bfe2
-*.color15:     #c6d0f5
+*.background:  #2d353b
+*.foreground:  #d3c6aa
+*.cursorColor: #d3c6aa
+*.color0:      #2d353b
+*.color8:      #343f44
+*.color1:      #e67e80
+*.color9:      #e67e80
+*.color2:      #a7c080
+*.color10:     #a7c080
+*.color3:      #dbbc7f
+*.color11:     #dbbc7f
+*.color4:      #7fbbb3
+*.color12:     #7fbbb3
+*.color5:      #d699b6
+*.color13:     #d699b6
+*.color6:      #83c092
+*.color14:     #83c092
+*.color7:      #859289
+*.color15:     #d3c6aa
 ! COLORS-END
 
 ! ── URxvt ──────────────────────────────────────────────────────
@@ -50,7 +50,7 @@ Xcursor.theme: Bibata-Modern-Classic
 Xcursor.size: 24
 
 ! ── Xft ────────────────────────────────────────────────────────
-Xft.dpi: 96
+Xft.dpi: 144
 Xft.antialias: true
 Xft.hinting: true
 ! rgba: none, not rgb -- HDMI-0 here is a TV; its subpixel layout and

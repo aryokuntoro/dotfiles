@@ -2,6 +2,16 @@
 
 # ── Autostart Script ──────────────────────────────────────────
 
+# ── Xresources ────────────────────────────────────────────────
+# Merged here, not only in ~/.xinitrc: ly can launch i3 straight from
+# /usr/share/xsessions/i3.desktop, which never sources .xinitrc. On
+# that login path nothing else loads Xft.* at all, so the UI scale set
+# via rofi-monitor.sh (Xft.dpi) -- along with cursor size and font
+# hinting -- would silently come back at the X server defaults, and
+# polybar, which reads its dpi from ${xrdb:Xft.dpi:96}, would start at
+# 96 while GTK apps came up at whatever settings.ini says.
+[ -f ~/.Xresources ] && xrdb -merge ~/.Xresources
+
 # Kill existing instances
 killall picom dunst polybar greenclip udiskie autotiling xss-lock 2>/dev/null
 pkill -f polkit-gnome-authentication-agent 2>/dev/null
@@ -68,8 +78,15 @@ if [ -f ~/.cache/ddcutil-unsupported ] && [ -f ~/.cache/xrandr-brightness ]; the
 fi
 
 # ── Set default rofi theme ────────────────────────────────────
+# Must name the same theme the rest of the shipped configs are
+# coloured for (everforest-dark): the fallback only fires on a fresh
+# install, where install.sh has just copied current.rasi in as a plain
+# file rather than a symlink -- so it always fires there, and pointing
+# it at a different theme than i3/polybar/dunst/kitty were snapshotted
+# with is exactly how rofi ended up the one mismatched piece until
+# theme-switch.sh was run once by hand.
 if [ ! -L ~/.config/rofi/themes/current.rasi ]; then
-    ln -sf ~/.config/rofi/themes/catppuccin-mocha.rasi ~/.config/rofi/themes/current.rasi
+    ln -sf ~/.config/rofi/themes/everforest-dark.rasi ~/.config/rofi/themes/current.rasi
 fi
 
 # ── Set icon theme ────────────────────────────────────────────

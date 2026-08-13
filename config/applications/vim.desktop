@@ -1,0 +1,26 @@
+[Desktop Entry]
+# Override for the packaged /usr/share/applications/vim.desktop. XDG
+# gives a file in ~/.local/share/applications precedence over the one
+# with the same basename in /usr/share, so this hides the terminal-vim
+# launcher from rofi/app menus -- vim-kitty.desktop is the entry that
+# should show up there, and both are Name=Vim, so without this the
+# launcher lists "Vim" twice with no way to tell them apart.
+#
+# NoDisplay only hides it from menus: it stays a perfectly valid
+# MimeType handler, which is why mimeapps.list can still keep it as
+# the fallback after vim-kitty.desktop. Fields are copied from the
+# packaged entry (translations dropped) because a user-level file
+# replaces the system one wholesale rather than merging into it.
+Name=Vim
+GenericName=Text Editor
+Comment=Edit text files
+TryExec=vim
+Exec=vim %F
+Terminal=true
+Type=Application
+Icon=gvim
+Categories=Utility;TextEditor;
+Keywords=Text;editor;
+StartupNotify=false
+NoDisplay=true
+MimeType=text/english;text/plain;text/x-makefile;text/x-c++hdr;text/x-c++src;text/x-chdr;text/x-csrc;text/x-java;text/x-moc;text/x-pascal;text/x-tcl;text/x-tex;application/x-shellscript;text/x-c;text/x-c++;
