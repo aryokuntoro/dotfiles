@@ -248,6 +248,29 @@ run_xrandr() {
     apply "$msg"
 }
 
+# ── Navigation ────────────────────────────────────────────────────
+#
+# The menus never call each other. Each one renders itself, decides
+# where the user goes next, records it with goto(), and returns; the
+# dispatch loop at the bottom of the file does the moving.
+#
+# They used to hand control over by calling the next menu directly. That
+# worked, but every step *and* every "Back" pushed another pair of
+# frames onto the call stack, and nothing ever unwound until the script
+# exited -- so depth grew without bound for as long as the menu stayed
+# open, and "Back" was not a return at all, it was a deeper call. Now
+# depth is constant no matter how long the session runs.
+#
+# A menu that sets no destination ends the script, which is what the
+# "Exit"/cancel paths want.
+nav_state=""
+nav_arg=""
+
+goto() {
+    nav_state="$1"
+    nav_arg="${2-}"
+}
+
 # ── Submenus ──────────────────────────────────────────────────────
 
 # One row of the Resolution menu, laid out like the Scale menu's rows
@@ -274,7 +297,7 @@ resolution_menu() {
 
     chosen=$(echo -e "$options" | $rofi_command "Resolution: $(monitor_label "$output")")
     case "$chosen" in
-        "" | "$divider" | "$goback") monitor_menu "$output"; return ;;
+        "" | "$divider" | "$goback") goto monitor "$output"; return ;;
         "Exit") exit 0 ;;
     esac
 
@@ -297,7 +320,7 @@ resolution_menu() {
         fi
         run_xrandr "$msg" --output "$output" --mode "$res" --rate "$rate"
     fi
-    monitor_menu "$output"
+    goto monitor "$output"
 }
 
 # The scale steps the menu offers, as Xft.dpi values (96 = 100%).
@@ -483,7 +506,7 @@ scale_menu() {
 
     chosen=$(echo -e "$options" | $rofi_command "$prompt")
     case "$chosen" in
-        "$goback" | "" | "$divider") monitor_menu "$output"; return ;;
+        "$goback" | "" | "$divider") goto monitor "$output"; return ;;
         "Exit") exit 0 ;;
     esac
 
@@ -512,7 +535,7 @@ scale_menu() {
         # runs after the restart is the one that picks up the new DPI.
         set_dpi "$dpi"
     fi
-    monitor_menu "$output"
+    goto monitor "$output"
 }
 
 rotate_menu() {
@@ -527,14 +550,14 @@ rotate_menu() {
         "Left") dir="left" ;;
         "Right") dir="right" ;;
         "Inverted") dir="inverted" ;;
-        "$goback" | "" | "$divider") monitor_menu "$output"; return ;;
+        "$goback" | "" | "$divider") goto monitor "$output"; return ;;
         "Exit") exit 0 ;;
     esac
 
     if [ -n "$dir" ]; then
         run_xrandr "$output rotation set to $chosen" --output "$output" --rotate "$dir"
     fi
-    monitor_menu "$output"
+    goto monitor "$output"
 }
 
 # Per-monitor actions
@@ -552,18 +575,18 @@ monitor_menu() {
 
     chosen=$(echo -e "$options" | $rofi_command "$label ($output)")
     case "$chosen" in
-        "" | "$divider") show_menu ;;
-        "$goback") show_menu ;;
+        "" | "$divider") goto main ;;
+        "$goback") goto main ;;
         "Exit") exit 0 ;;
         "$primary_opt")
             run_xrandr "$output set as primary" --output "$output" --primary
-            show_menu
+            goto main
             ;;
         # Prefix globs: both labels now carry their current value in
         # parentheses, so they no longer match as fixed strings.
-        "Resolution"*) resolution_menu "$output" ;;
-        "Scale"*) scale_menu "$output" ;;
-        "Rotate") rotate_menu "$output" ;;
+        "Resolution"*) goto resolution "$output" ;;
+        "Scale"*) goto scale "$output" ;;
+        "Rotate") goto rotate "$output" ;;
         "Turn Off")
             # Refuse to black out the last one. On a single-display
             # machine this arm used to kill the only output *and*
@@ -572,10 +595,10 @@ monitor_menu() {
             # black too, recoverable only from a TTY.
             if is_active "$output" && [ "$(active_outputs | grep -c .)" -le 1 ]; then
                 notify-send "  Monitor" "Refusing to turn off the only active display."
-                monitor_menu "$output"
+                goto monitor "$output"
             else
                 run_xrandr "$output turned off" --output "$output" --off
-                show_menu
+                goto main
             fi
             ;;
     esac
@@ -589,7 +612,7 @@ extend_menu() {
 
     if [ -z "$others" ]; then
         notify-send "  Monitor" "Only one display connected -- nothing to extend against."
-        show_menu
+        goto main
         return
     fi
 
@@ -601,13 +624,13 @@ extend_menu() {
 
     chosen=$(echo -e "$options" | $rofi_command "Extend $output relative to")
     case "$chosen" in
-        "" | "$divider" | "$goback") show_menu; return ;;
+        "" | "$divider" | "$goback") goto main; return ;;
         "Exit") exit 0 ;;
     esac
 
     local ref
     ref=$(echo "$chosen" | grep -oP '\(\K[^)]+(?=\)$)')
-    [ -z "$ref" ] && { show_menu; return; }
+    [ -z "$ref" ] && { goto main; return; }
 
     local dir_options="Right of\nLeft of\nAbove\nBelow\n$divider\n$goback\nExit"
     dir_chosen=$(echo -e "$dir_options" | $rofi_command "Position of $output")
@@ -617,7 +640,7 @@ extend_menu() {
         "Left of") flag="--left-of" ;;
         "Above") flag="--above" ;;
         "Below") flag="--below" ;;
-        "$goback" | "" | "$divider") show_menu; return ;;
+        "$goback" | "" | "$divider") goto main; return ;;
         "Exit") exit 0 ;;
     esac
 
@@ -627,7 +650,7 @@ extend_menu() {
     # notification still claims success.
     run_xrandr "$output extended ${dir_chosen,,} $ref" \
         --output "$ref" --auto --output "$output" --auto "$flag" "$ref"
-    show_menu
+    goto main
 }
 
 mirror_all() {
@@ -641,7 +664,7 @@ mirror_all() {
     mode=$(common_mode)
     if [ -z "$mode" ]; then
         notify-send "  Monitor" "No resolution all displays share -- cannot mirror."
-        show_menu
+        goto main
         return
     fi
 
@@ -650,7 +673,7 @@ mirror_all() {
     done <<< "$outputs"
 
     run_xrandr "All displays mirrored at $mode" "${args[@]}"
-    show_menu
+    goto main
 }
 
 single_display_menu() {
@@ -664,13 +687,13 @@ single_display_menu() {
 
     chosen=$(echo -e "$options" | $rofi_command "Use only")
     case "$chosen" in
-        "" | "$divider" | "$goback") show_menu; return ;;
+        "" | "$divider" | "$goback") goto main; return ;;
         "Exit") exit 0 ;;
     esac
 
     local keep
     keep=$(echo "$chosen" | grep -oP '\(\K[^)]+(?=\)$)')
-    [ -z "$keep" ] && { show_menu; return; }
+    [ -z "$keep" ] && { goto main; return; }
 
     # Built up and handed to xrandr in one go: switching outputs off
     # one call at a time can transiently leave the X screen with no
@@ -687,7 +710,7 @@ single_display_menu() {
     done <<< "$outputs"
 
     run_xrandr "Using only $keep" "${args[@]}"
-    show_menu
+    goto main
 }
 
 show_menu() {
@@ -716,14 +739,23 @@ show_menu() {
 
     case "$chosen" in
         "" ) exit 0 ;;
-        "$divider") show_menu ;;
+        "$divider") goto main ;;
         "Exit") exit 0 ;;
         "$detect_opt")
-            autorandr --change
-            apply "Displays re-detected"
+            # `autorandr --change` exits non-zero when no saved profile
+            # matches the connected set -- worth saying so instead of
+            # reporting a re-detect that did nothing. This arm also used
+            # to fall out of the case with nowhere to go, which closed
+            # the menu outright while every other action returned to it.
+            if autorandr --change >/dev/null 2>&1; then
+                apply "Displays re-detected"
+            else
+                notify-send "  Monitor" "No saved profile matches the connected displays."
+            fi
+            goto main
             ;;
-        "$mirror_opt") mirror_all ;;
-        "$single_opt") single_display_menu ;;
+        "$mirror_opt") goto mirror ;;
+        "$single_opt") goto single ;;
         *)
             if [[ "$chosen" == *"Extend Layout"* ]]; then
                 # Ambiguous with >1 monitor: ask which one to extend.
@@ -734,20 +766,18 @@ show_menu() {
                 pick_opts="${pick_opts}$divider\n$goback\nExit"
                 pick=$(echo -e "$pick_opts" | $rofi_command "Extend which display?")
                 case "$pick" in
-                    "" | "$divider" | "$goback") show_menu ;;
+                    "" | "$divider" | "$goback") goto main ;;
                     "Exit") exit 0 ;;
                     *)
                         local target
                         target=$(echo "$pick" | grep -oP '\(\K[^)]+(?=\)$)')
-                        # Not `A && B || C`: extend_menu ends in a menu
-                        # call whose exit status is whatever the user's
-                        # last action returned, so a non-zero one there
-                        # would have fallen through and opened show_menu
-                        # a second time on top of it.
+                        # Not `A && B || C`: the right-hand side would
+                        # also run whenever the left-hand one returned
+                        # non-zero, queueing the wrong destination.
                         if [ -n "$target" ]; then
-                            extend_menu "$target"
+                            goto extend "$target"
                         else
-                            show_menu
+                            goto main
                         fi
                         ;;
                 esac
@@ -758,13 +788,37 @@ show_menu() {
                 output="${chosen%</span>}"
                 output="${output##*>}"
                 if echo "$outputs" | grep -qx "$output"; then
-                    monitor_menu "$output"
+                    goto monitor "$output"
                 else
-                    show_menu
+                    goto main
                 fi
             fi
             ;;
     esac
 }
 
-show_menu
+# ── Dispatch ──────────────────────────────────────────────────────
+# nav_state is cleared before each menu runs, so a menu that sets no new
+# destination simply ends the loop and the script.
+goto main
+while [ -n "$nav_state" ]; do
+    _state="$nav_state"
+    _arg="$nav_arg"
+    nav_state=""
+    nav_arg=""
+
+    case "$_state" in
+        main)       show_menu ;;
+        monitor)    monitor_menu "$_arg" ;;
+        resolution) resolution_menu "$_arg" ;;
+        scale)      scale_menu "$_arg" ;;
+        rotate)     rotate_menu "$_arg" ;;
+        extend)     extend_menu "$_arg" ;;
+        mirror)     mirror_all ;;
+        single)     single_display_menu ;;
+        *)
+            printf 'rofi-monitor: unknown menu state: %s\n' "$_state" >&2
+            exit 1
+            ;;
+    esac
+done
