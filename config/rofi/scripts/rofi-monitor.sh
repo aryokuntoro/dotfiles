@@ -128,7 +128,16 @@ diagonal_inches() {
     awk -v w="$w" -v h="$h" 'BEGIN { printf "%d", sqrt(w*w + h*h) / 25.4 + 0.5 }'
 }
 
-# All "<res>@<rate>Hz" combos this output supports, one per line.
+# Every "<res>@<rate>Hz" this output supports, one per line, as
+# "<mode><TAB><flags>".
+#
+# flags carries xrandr's own two markers straight through: "*" for the
+# mode currently in use and "+" for the one the EDID declares
+# preferred -- i.e. the panel's native resolution. This used to
+# gsub() both away, which threw out the only thing that says which
+# line is the right one to pick; the Resolution menu had no
+# recommendation for exactly that reason, even though the hardware
+# had been telling us all along.
 list_modes() {
     local output="$1"
     xrandr --query | awk -v out="$output" '
@@ -137,8 +146,12 @@ list_modes() {
         inblock {
             res = $1
             for (i = 2; i <= NF; i++) {
-                rate = $i; gsub(/[*+]/, "", rate)
-                print res "@" rate "Hz"
+                rate = $i
+                flags = ""
+                if (rate ~ /\*/) flags = flags "*"
+                if (rate ~ /\+/) flags = flags "+"
+                gsub(/[*+]/, "", rate)
+                print res "@" rate "Hz" "\t" flags
             }
         }
     '
@@ -182,26 +195,56 @@ apply() {
 
 # ── Submenus ──────────────────────────────────────────────────────
 
-resolution_menu() {
-    local output="$1"
-    local options
-    options=$(list_modes "$output")
-    options="$options\n$divider\n$goback\nExit"
+# One row of the Resolution menu, laid out like the Scale menu's rows
+# so the two read as the same kind of list.
+mode_row() {
+    local mode="$1" flags="$2" tag=""
+    [[ "$flags" == *"*"* ]] && tag="$tag  ·  current"
+    [[ "$flags" == *"+"* ]] && tag="$tag  ·  native"
+    printf '<span weight="bold" size="large">%s</span>   <span size="small" alpha="75%%">%s</span><span size="small" weight="bold">%s</span>' \
+        "${mode%@*}" "${mode#*@}" "$tag"
+}
 
-    chosen=$(echo -e "$options" | $rofi_command "Resolution: $output")
+resolution_menu() {
+    local output="$1" options="" mode flags
+
+    # "native" is the EDID's preferred mode, so unlike the Scale
+    # menu's suggestion this is read from the panel rather than
+    # estimated -- running anything else means the display is
+    # interpolating, which on a fixed-pixel panel is always softer.
+    while IFS=$'\t' read -r mode flags; do
+        [ -n "$mode" ] && options="${options}$(mode_row "$mode" "$flags")\n"
+    done < <(list_modes "$output")
+    options="${options}$divider\n$goback\nExit"
+
+    chosen=$(echo -e "$options" | $rofi_command "Resolution: $(monitor_label "$output")")
     case "$chosen" in
-        "" | "$divider") monitor_menu "$output" ;;
-        "$goback") monitor_menu "$output" ;;
+        "" | "$divider" | "$goback") monitor_menu "$output"; return ;;
         "Exit") exit 0 ;;
-        *)
-            local res rate
-            res=$(echo "$chosen" | cut -d'@' -f1)
-            rate=$(echo "$chosen" | cut -d'@' -f2 | tr -d 'Hz')
-            xrandr --output "$output" --mode "$res" --rate "$rate"
-            apply "$output set to $res @ ${rate}Hz"
-            monitor_menu "$output"
-            ;;
     esac
+
+    # Rows are pango markup; strip the tags, then pull the two numbers
+    # back out. The "current"/"native" labels carry no digits, so they
+    # can't be mistaken for a mode or a refresh rate.
+    local plain res rate
+    plain=$(printf '%s' "$chosen" | sed -e 's/<[^>]*>//g')
+    res=$(printf '%s' "$plain" | grep -oP '[0-9]+x[0-9]+' | head -1)
+    rate=$(printf '%s' "$plain" | grep -oP '[0-9]+\.[0-9]+(?=Hz)' | head -1)
+    if [ -n "$res" ] && [ -n "$rate" ]; then
+        xrandr --output "$output" --mode "$res" --rate "$rate"
+
+        # Resolution and scale are separate settings, but changing the
+        # mode changes the panel's effective pixel density, which moves
+        # what the Scale menu would recommend. Say so rather than
+        # leaving the UI at a size that no longer suits the mode.
+        local msg="$output set to $res @ ${rate}Hz" rec
+        rec=$(recommended_dpi "$output")
+        if [ "$rec" -gt 0 ] && [ "$rec" != "$(current_dpi)" ]; then
+            msg="$msg -- Scale now suggests $((rec * 100 / 96))%"
+        fi
+        apply "$msg"
+    fi
+    monitor_menu "$output"
 }
 
 # The scale steps the menu offers, as Xft.dpi values (96 = 100%).
@@ -270,15 +313,22 @@ recommended_dpi() {
     }'
 }
 
-# One row of the Scale menu: the percentage large, and underneath the
-# things that actually decide the choice -- the dpi it sets and how
-# much logical desktop is left at that scale (a 1920x1080 panel at
-# 150% has only 1280x720 worth of room for windows).
+# One row of the Scale menu: the percentage large, and underneath it
+# the dpi it sets plus the size the desktop ends up behaving like.
+#
+# That second number is NOT a display mode and has nothing to do with
+# the Resolution menu -- the panel keeps running whatever mode it is
+# set to. It's the price of the scale: at 150% on a 1920x1080 panel,
+# windows and menus are drawn 1.5x bigger, so only as much fits as
+# would fit on a 1280x720 screen. Worth showing here because it's the
+# one cost of scaling that isn't visible until you've already picked
+# a value and run out of room. Phrased "apps see" rather than
+# "logical resolution" so it can't be read as a mode.
 scale_row() {
     local dpi="$1" px_w="$2" px_h="$3" rec="$4" cur="$5" tag=""
     [ "$dpi" = "$cur" ] && tag="$tag  ·  current"
     [ "$dpi" = "$rec" ] && tag="$tag  ·  recommended"
-    printf '<span weight="bold" size="large">%s%%</span>   <span size="small" alpha="75%%">%s dpi  ·  %sx%s logical</span><span size="small" weight="bold">%s</span>' \
+    printf '<span weight="bold" size="large">%s%%</span>   <span size="small" alpha="75%%">%s dpi  ·  apps see %sx%s</span><span size="small" weight="bold">%s</span>' \
         "$((dpi * 100 / 96))" "$dpi" "$((px_w * 96 / dpi))" "$((px_h * 96 / dpi))" "$tag"
 }
 
@@ -435,7 +485,12 @@ monitor_menu() {
     local label mode primary_opt=" Set as Primary"
     label=$(monitor_label "$output")
 
-    local options="$primary_opt\nResolution\nScale\nRotate\nTurn Off\n$divider\n$goback\nExit"
+    # Resolution and Scale carry their current value here so it's
+    # obvious they are two independent settings -- one is the mode the
+    # panel runs, the other is how big the UI is drawn on it.
+    mode=$(current_mode "$output" | head -1)
+    [ -z "$mode" ] && mode="off"
+    local options="$primary_opt\nResolution  ($mode)\nScale  ($(( $(current_dpi) * 100 / 96 ))%)\nRotate\nTurn Off\n$divider\n$goback\nExit"
 
     chosen=$(echo -e "$options" | $rofi_command "$label ($output)")
     case "$chosen" in
@@ -447,8 +502,10 @@ monitor_menu() {
             apply "$output set as primary"
             show_menu
             ;;
-        "Resolution") resolution_menu "$output" ;;
-        "Scale") scale_menu "$output" ;;
+        # Prefix globs: both labels now carry their current value in
+        # parentheses, so they no longer match as fixed strings.
+        "Resolution"*) resolution_menu "$output" ;;
+        "Scale"*) scale_menu "$output" ;;
         "Rotate") rotate_menu "$output" ;;
         "Turn Off")
             xrandr --output "$output" --off

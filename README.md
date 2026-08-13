@@ -346,9 +346,22 @@ Restart Windows afterward.
   kitty/GTK/Qt windows keep the old size until relaunched. For bigger
   GTK *widgets* (not just text) at high DPI, the theme repos also ship
   `-hdpi`/`-xhdpi` variants — point `gtk-theme-name` at one of those.
-- Each row of that Scale menu shows the dpi it sets and the **logical
-  resolution** left at that scale (1920x1080 at 150% leaves 1280x720 of
-  room for windows), and one row is tagged *recommended*. That
+- **Resolution and Scale are separate settings**, and the monitor menu
+  shows each one's current value next to it (`Resolution  (1920x1080@60.00Hz)`
+  / `Scale  (150%)`). Resolution is the mode the panel runs; Scale is how
+  big the UI is drawn on it. Both menus recommend a row, but from
+  different kinds of evidence: Resolution tags the mode the EDID declares
+  *native* (plus the one in use) — read straight from the hardware, since
+  xrandr already marks them `+` and `*` — while Scale's suggestion is
+  estimated. Changing the resolution changes the panel's effective pixel
+  density, so if that moves what Scale should be, the confirmation
+  notification says so (`... -- Scale now suggests 100%`).
+- Each row of the Scale menu shows the dpi it sets and what the desktop
+  ends up behaving like — `apps see 1280x720` at 150% on a 1080p panel.
+  That is *not* a display mode and has nothing to do with the Resolution
+  menu; the panel keeps running its own mode. It's there because losing
+  room for windows is the one cost of scaling you don't notice until
+  after you've picked a value. One row is tagged *recommended*: that
   suggestion is computed per display, from the EDID: real pixel density
   (px ÷ physical mm) plus a viewing distance guessed from the diagonal,
   solved against a 96 dpi / 60 cm desk baseline. So a 24" 1080p monitor
