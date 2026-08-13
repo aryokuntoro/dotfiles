@@ -1,5 +1,10 @@
+# shellcheck shell=bash
+# (No shebang on purpose: this file is sourced by bash, never executed.)
 #
 # ~/.bash_profile
 #
 
+# shellcheck disable=SC1090
+# (SC1090: the target lives at ~/.bashrc, not at a path relative to this
+# file, so shellcheck cannot follow it. The -f guard covers absence.)
 [[ -f ~/.bashrc ]] && . ~/.bashrc

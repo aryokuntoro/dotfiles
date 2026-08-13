@@ -403,6 +403,22 @@ Restart Windows afterward.
   (mirror, single-display, extend) are also each issued as one atomic
   `xrandr` call rather than several, and nothing is announced or
   persisted unless `xrandr` actually exited 0.
+- **Log in via the `xinitrc` session in ly, not the `i3` entry.** Cycle
+  the session type at the login screen once; `save = true` in
+  `/etc/ly/config.ini` makes ly remember it. Picking the `i3` desktop
+  entry runs `i3` directly and never reads `~/.xinitrc`, which is the
+  only place `QT_QPA_PLATFORMTHEME` and `QT_FONT_DPI` can be set: an
+  environment variable has to exist *before* i3 starts, because
+  everything i3 launches inherits i3's environment, and nothing can add
+  one afterwards. (This is why the Xresources merge could move into
+  `autostart.sh` — `xrdb` talks to the running X server — while these
+  two could not.) On the `i3` entry, Qt apps get neither qt5ct theming
+  nor DPI scaling, so `qt5ct/` and `qt6ct/` in this repo do nothing.
+- Qt has no equivalent of `Xft.dpi`; it reads `QT_FONT_DPI`, which
+  `~/.xinitrc` derives from the merged Xresources so the scale stays
+  stored in one place. Unlike GTK — which re-reads `settings.ini` per
+  app launch — this is fixed for the life of the session: after changing
+  the scale, Qt apps follow only from the next login.
 - **One DPI, one X screen.** X11 has no per-output DPI (that's a
   Wayland feature), so with two displays of different densities plugged
   in, `Xft.dpi` is still a single global value and one of them will be

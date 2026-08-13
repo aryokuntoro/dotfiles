@@ -16,11 +16,15 @@ SHELL := /bin/bash
 # Python script that happens to carry a .sh extension (its name is baked
 # into polybar/config.ini and rofi-network.sh, so renaming it is not a
 # free change). shellcheck errors out on it, and so does bash -n.
-SCRIPTS := $(shell find . -name '*.sh' \
-	-not -path './installer/target/*' \
-	-not -path './.git/*' \
-	-not -name 'NetManagerDM.sh' \
-	| sort)
+# home/ holds shell files without a .sh extension, xinitrc among them --
+# the one file most able to leave you at a black screen, so it is
+# exactly the one worth linting.
+SCRIPTS := $(shell { find . -name '*.sh' \
+		-not -path './installer/target/*' \
+		-not -path './.git/*' \
+		-not -name 'NetManagerDM.sh'; \
+	ls home/xinitrc home/bashrc home/bash_profile home/bash_logout 2>/dev/null; \
+	} | sort)
 
 .PHONY: help check test lint fmt syntax
 

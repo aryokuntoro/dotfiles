@@ -80,7 +80,6 @@ if [ -n "$PANEL" ]; then
         brightnessctl -d "$PANEL" -m 2>/dev/null | awk -F, '{print $4}' | tr -d '%'
     }
 elif [ -f "$UNSUPPORTED_CACHE" ]; then
-    XRANDR_OUTPUT=$(xrandr --query | awk '/ connected/{print $1; exit}')
     BRIGHTNESS_CACHE="$HOME/.cache/xrandr-brightness"
     MIN_PCT=20
 
@@ -92,9 +91,17 @@ elif [ -f "$UNSUPPORTED_CACHE" ]; then
     down) pct=$((pct - 5 < MIN_PCT ? MIN_PCT : pct - 5)) ;;
     esac
 
-    if [ -n "$1" ] && [ -n "$XRANDR_OUTPUT" ]; then
-        xrandr --output "$XRANDR_OUTPUT" --brightness "$(awk -v p="$pct" 'BEGIN{printf "%.2f", p/100}')"
-        echo "$pct" > "$BRIGHTNESS_CACHE"
+    # Looked up only when actually changing brightness. polybar runs
+    # this script every 2s just to print the current value, and
+    # `xrandr --query` costs ~67ms on this NVIDIA setup -- it was two
+    # thirds of the total cost of every status bar refresh, spent on a
+    # value that gets discarded unless $1 is set.
+    if [ -n "$1" ]; then
+        XRANDR_OUTPUT=$(xrandr --query | awk '/ connected/{print $1; exit}')
+        if [ -n "$XRANDR_OUTPUT" ]; then
+            xrandr --output "$XRANDR_OUTPUT" --brightness "$(awk -v p="$pct" 'BEGIN{printf "%.2f", p/100}')"
+            echo "$pct" > "$BRIGHTNESS_CACHE"
+        fi
     fi
 
     current_percentage() { echo "$pct"; }

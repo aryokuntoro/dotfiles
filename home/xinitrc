@@ -5,8 +5,12 @@
 # Load Xresources
 [[ -f ~/.Xresources ]] && xrdb -merge ~/.Xresources
 
-# Set keyboard layout
-setxkbmap -layout us,ar -option grp:alt_shift_toggle
+# Set keyboard layout. "ara", not "ar" -- the XKB symbols file is
+# /usr/share/X11/xkb/symbols/ara and there is no "ar", so the old value
+# made this exit 5 with "Error loading new keyboard description" and no
+# Arabic group was ever loaded. It went unnoticed because ly was
+# launching the i3 desktop entry, which never runs this file at all.
+setxkbmap -layout us,ara -option grp:alt_shift_toggle
 
 # Set keyboard repeat rate
 xset r rate 300 50
@@ -20,11 +24,35 @@ xset -b
 # they now live in config/autostart/autostart.sh, which runs via i3's
 # exec_always regardless of which session entry was picked at login.
 
-# Qt apps: use qt5ct/qt6ct for theming (qt6ct's plugin also answers to
-# the "qt5ct" key, so one variable covers both Qt5 and Qt6 apps)
+# ── Qt ─────────────────────────────────────────────────────────
+# These are the reason to boot the "xinitrc" session in ly rather than
+# the i3 desktop entry: environment variables have to exist before i3
+# starts, because everything i3 launches inherits i3's environment.
+# There is no way to add them afterwards -- which is why the Xresources
+# merge could be moved into autostart.sh (xrdb talks to the running X
+# server) but these two cannot.
+#
+# qt6ct's plugin also answers to the "qt5ct" key, so one variable covers
+# both Qt5 and Qt6 apps.
 export QT_QPA_PLATFORMTHEME=qt5ct
 
+# Qt has no equivalent of Xft.dpi -- it reads QT_FONT_DPI instead -- so
+# without this Qt apps stay at 96 while i3, polybar, rofi, kitty and GTK
+# all scale. Read back out of the X server after the merge above, so
+# ~/.Xresources stays the single place the scale is stored and
+# rofi-monitor.sh's Scale menu keeps working as the one place to set it.
+#
+# Fixed for the life of the session, unlike the others: a scale change
+# mid-session reaches Qt apps only after the next login.
+qt_dpi=$(xrdb -query 2>/dev/null | awk -F':[[:space:]]*' '/^Xft\.dpi/ {print $2}')
+[[ "$qt_dpi" =~ ^[0-9]+$ ]] && export QT_FONT_DPI="$qt_dpi"
+unset qt_dpi
+
 # Source profile
+# shellcheck disable=SC1090
+# (SC1090: ~/.profile is the user's own file and is not part of
+# this repo, so there is nothing for shellcheck to follow. The
+# -f guard already covers it not existing.)
 [[ -f ~/.profile ]] && . ~/.profile
 
 # Start i3

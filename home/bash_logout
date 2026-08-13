@@ -1,3 +1,5 @@
+# shellcheck shell=bash
+# (No shebang on purpose: this file is sourced by bash, never executed.)
 #
 # ~/.bash_logout
 #
