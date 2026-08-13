@@ -135,10 +135,36 @@ config), then `$mod+F2` to pick an initial theme.
 │   └── ...                  autostart, btop, htop, mpv, qalculate, Thunar, uad, xarchiver, + a few loose files
 ├── home/                    -> ~/.<file>
 │   └── xinitrc, Xresources, bashrc, bash_profile, bash_logout, gitconfig
+├── tests/                   NOT installed -- install.sh only reads config/ and home/
+│   ├── run.sh               dependency-free runner: `make test` needs only bash
+│   ├── lib/harness.sh       hermetic xrandr/rofi stand-ins + assertions
+│   └── fixtures/            canned xrandr output, so tests need no display
+├── Makefile                 make test / lint / syntax / check
 ├── setup-hibernate.sh       one-time system setup, NOT part of install.sh -- needs sudo, edits the bootloader
 ├── setup-samba-share.sh     one-time system setup, NOT part of install.sh -- needs sudo
 └── README.md
 ```
+
+### Checking changes
+
+```sh
+make test     # tests/ -- bash only, works on a bare install
+make lint     # shellcheck every script (sudo pacman -S shellcheck)
+make syntax   # bash -n every script
+make check    # all three
+```
+
+`tests/` covers `rofi-monitor.sh`, the script with the most to get wrong.
+It runs against fixture `xrandr` output rather than the real X server, so
+it needs no display — and, more to the point, *cannot* reach one. An
+earlier throwaway harness only intercepted the xrandr subcommands that
+looked dangerous, which left `--off` live and blanked the screen
+mid-test; `tests/lib/harness.sh` allowlists the read-only subcommands
+instead and logs everything else without running it.
+
+`config/rofi/scripts/NetManagerDM.sh` is skipped by `lint` and `syntax`:
+it is a Python script carrying a `.sh` extension, and its name is baked
+into `polybar/config.ini` and `rofi-network.sh`.
 
 ## Required packages
 

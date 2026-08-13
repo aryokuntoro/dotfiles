@@ -83,7 +83,10 @@ addr=$(rofi_input "Address" "Format: ${HINT[$choice]}")
 
 uri="${scheme}://${addr}"
 
-kitty --title "Connect to Server" -e bash -c '
+# shellcheck disable=SC2016
+# (SC2016: single quotes are the point -- $uri must expand inside the
+# bash -c that kitty starts, not here. It is passed in as $1 below.)
+if kitty --title "Connect to Server" -e bash -c '
     uri="$1"
     echo "Connecting to $uri ..."
     if gio mount "$uri"; then
@@ -93,9 +96,7 @@ kitty --title "Connect to Server" -e bash -c '
         read -n1 -r -p "Failed to connect. Press any key to close..."
         exit 1
     fi
-' _ "$uri"
-
-if [ $? -eq 0 ]; then
+' _ "$uri"; then
     open_in_thunar "$uri"
     notify-send "  Connect to Server" "Connected to $uri"
 else

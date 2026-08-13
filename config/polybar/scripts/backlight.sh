@@ -61,7 +61,14 @@ color() { grep -m1 "^$1 = " "$CONF" | sed 's/^[a-z-]* = //'; }
 ACCENT=$(color accent)
 FG=$(color foreground)
 
-PANEL=$(ls /sys/class/backlight 2>/dev/null | head -1)
+# Glob rather than `ls | head -1`: same result, but it cannot be tripped
+# up by an odd filename and it does not fork.
+PANEL=""
+for panel_path in /sys/class/backlight/*; do
+    [ -e "$panel_path" ] || continue   # no match -- the glob stayed literal
+    PANEL=${panel_path##*/}
+    break
+done
 
 if [ -n "$PANEL" ]; then
     case "$1" in

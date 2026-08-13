@@ -798,6 +798,11 @@ show_menu() {
 }
 
 # ── Dispatch ──────────────────────────────────────────────────────
+# Sourcing this file defines the functions and stops here; only running
+# it opens a menu. The test suite sources it, and a file that drives a
+# real X server the moment it is read cannot be tested at all.
+[ "${BASH_SOURCE[0]}" != "$0" ] && return 0
+
 # nav_state is cleared before each menu runs, so a menu that sets no new
 # destination simply ends the loop and the script.
 goto main

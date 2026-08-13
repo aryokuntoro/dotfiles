@@ -1,0 +1,10 @@
+Screen 0: minimum 8 x 8, current 4480 x 1440, maximum 32767 x 32767
+DVI-D-0 disconnected (normal left inverted right x axis y axis)
+HDMI-0 connected primary 1920x1080+0+0 (normal left inverted right x axis y axis) 708mm x 398mm
+   1920x1080     60.00*+  59.94    50.00
+   1280x720      59.94    50.00
+DP-1 connected 2560x1440+1920+0 (normal left inverted right x axis y axis) 597mm x 336mm
+   2560x1440     59.95*+
+   1920x1080     60.00    59.94
+   1280x720      59.94
+DP-0 disconnected (normal left inverted right x axis y axis)

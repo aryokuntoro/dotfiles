@@ -90,7 +90,12 @@ fi
 # zswap.enabled=0) that grub-mkconfig itself wouldn't know to add, so
 # regenerating grub.cfg doesn't silently drop them.
 EXTRA_PARAMS=""
-for p in $(cat /proc/cmdline); do
+# read -ra rather than `for p in $(cat ...)`: /proc/cmdline is a single
+# space-separated line, so word splitting is what we want here, but the
+# unquoted command substitution also glob-expanded -- a kernel parameter
+# containing * or ? would have been replaced by matching filenames.
+read -ra CMDLINE_PARAMS < /proc/cmdline
+for p in "${CMDLINE_PARAMS[@]}"; do
     case "$p" in
         BOOT_IMAGE=*|root=*|rootflags=*|rootfstype=*|resume=*|resume_offset=*|initrd=*) ;;
         *) grep -q -- "$p" /etc/default/grub 2>/dev/null || EXTRA_PARAMS="$EXTRA_PARAMS $p" ;;

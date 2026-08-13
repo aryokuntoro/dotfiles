@@ -16,8 +16,8 @@
 
 # Poll findmnt for up to ~2s for a mount point to appear on $1.
 wait_for_mount() {
-    local dev="$1" i
-    for i in $(seq 1 10); do
+    local dev="$1"
+    for _ in $(seq 1 10); do
         local mp
         mp=$(findmnt -n -o TARGET "$dev" 2>/dev/null | head -1)
         if [ -n "$mp" ]; then
