@@ -7,6 +7,15 @@
 # Depends on: rofi, xrandr, edid-decode, xxd, autorandr (optional,
 # used to persist the resulting layout as a profile).
 
+for _dep in rofi xrandr; do
+    if ! command -v "$_dep" >/dev/null 2>&1; then
+        printf 'rofi-monitor: missing required command: %s\n' "$_dep" >&2
+        command -v notify-send >/dev/null 2>&1 &&
+            notify-send "  Monitor" "Missing required command: $_dep"
+        exit 1
+    fi
+done
+
 divider="---------"
 goback=" Back"
 # Saved into the same "default" profile autorandr already uses at
@@ -67,6 +76,36 @@ connected_outputs() {
 
 is_active() {
     xrandr --query | grep -qE "^$1 connected (primary )?[0-9]+x[0-9]+"
+}
+
+# Outputs actually driving a mode right now -- connected but switched
+# off does not count.
+active_outputs() {
+    xrandr --query | awk '/ connected/ && /[0-9]+x[0-9]+\+[0-9]+\+[0-9]+/ {print $1}'
+}
+
+# "normal" / "left" / "right" / "inverted". xrandr only prints the word
+# when the output is actually rotated, so absence means normal.
+current_rotation() {
+    local rot
+    rot=$(xrandr --query | grep -m1 "^$1 connected" |
+          grep -oP '[0-9]+x[0-9]+\+[0-9]+\+[0-9]+ \K(left|right|inverted)')
+    echo "${rot:-normal}"
+}
+
+# Largest resolution every connected output can do. Mirroring needs one:
+# `--auto --same-as` gives each panel its *own* preferred mode, and two
+# panels with different natives then do not actually mirror -- the
+# framebuffer takes the larger and the smaller shows a crop of it.
+common_mode() {
+    local total
+    total=$(connected_outputs | grep -c .)
+    while IFS= read -r o; do
+        [ -n "$o" ] && list_modes "$o" | cut -f1 | cut -d'@' -f1 | sort -u
+    done < <(connected_outputs) |
+        sort | uniq -c |
+        awk -v n="$total" '$1 == n { split($2, d, "x"); print d[1] * d[2], $2 }' |
+        sort -rn | head -1 | cut -d' ' -f2
 }
 
 is_primary() {
@@ -193,6 +232,22 @@ apply() {
     fi
 }
 
+# Apply a layout change, and notify + persist only if xrandr actually
+# accepted it. Nothing here used to check: xrandr exits non-zero on a
+# mode the panel cannot do, a CRTC it cannot allocate, or a bad
+# argument, and the menu would still report success *and* still run
+# `autorandr --save`, writing the unchanged (or half-applied) layout
+# into the profile autostart restores at login.
+run_xrandr() {
+    local msg="$1" err
+    shift
+    if ! err=$(xrandr "$@" 2>&1); then
+        notify-send "  Monitor" "xrandr failed: ${err%%$'\n'*}"
+        return 1
+    fi
+    apply "$msg"
+}
+
 # ── Submenus ──────────────────────────────────────────────────────
 
 # One row of the Resolution menu, laid out like the Scale menu's rows
@@ -231,8 +286,6 @@ resolution_menu() {
     res=$(printf '%s' "$plain" | grep -oP '[0-9]+x[0-9]+' | head -1)
     rate=$(printf '%s' "$plain" | grep -oP '[0-9]+\.[0-9]+(?=Hz)' | head -1)
     if [ -n "$res" ] && [ -n "$rate" ]; then
-        xrandr --output "$output" --mode "$res" --rate "$rate"
-
         # Resolution and scale are separate settings, but changing the
         # mode changes the panel's effective pixel density, which moves
         # what the Scale menu would recommend. Say so rather than
@@ -242,7 +295,7 @@ resolution_menu() {
         if [ "$rec" -gt 0 ] && [ "$rec" != "$(current_dpi)" ]; then
             msg="$msg -- Scale now suggests $((rec * 100 / 96))%"
         fi
-        apply "$msg"
+        run_xrandr "$msg" --output "$output" --mode "$res" --rate "$rate"
     fi
     monitor_menu "$output"
 }
@@ -443,7 +496,13 @@ scale_menu() {
         # `--scale` approach (or restored from a profile saved back
         # then) -- the two stack, and the leftover transform would
         # keep the picture blurry no matter what the DPI says.
-        xrandr --output "$output" --scale 1x1 --filter nearest
+        # Only meaningful while the output drives a mode; on a dark
+        # one there is no transform to clear and xrandr would error,
+        # which would then block the DPI change below.
+        if is_active "$output"; then
+            run_xrandr "$output scale set to $((dpi * 100 / 96))% ($dpi dpi)" \
+                --output "$output" --scale 1x1 --filter nearest || return
+        fi
         # Persist the layout *before* touching the DPI. set_dpi ends
         # with an i3 restart, and i3's exec_always fires autostart.sh,
         # which runs `autorandr --change` -- letting that overlap with
@@ -451,7 +510,6 @@ scale_menu() {
         # profile. Polybar is relaunched by both, which is harmless:
         # launch.sh serialises itself with a flock, and the one that
         # runs after the restart is the one that picks up the new DPI.
-        apply "$output scale set to $((dpi * 100 / 96))% ($dpi dpi)"
         set_dpi "$dpi"
     fi
     monitor_menu "$output"
@@ -461,7 +519,8 @@ rotate_menu() {
     local output="$1"
     local options="Normal\nLeft\nRight\nInverted\n$divider\n$goback\nExit"
 
-    chosen=$(echo -e "$options" | $rofi_command "Rotate: $output")
+    chosen=$(echo -e "$options" |
+        $rofi_command "Rotate: $(monitor_label "$output")  ·  now $(current_rotation "$output")")
     local dir=""
     case "$chosen" in
         "Normal") dir="normal" ;;
@@ -473,8 +532,7 @@ rotate_menu() {
     esac
 
     if [ -n "$dir" ]; then
-        xrandr --output "$output" --rotate "$dir"
-        apply "$output rotation set to $chosen"
+        run_xrandr "$output rotation set to $chosen" --output "$output" --rotate "$dir"
     fi
     monitor_menu "$output"
 }
@@ -498,8 +556,7 @@ monitor_menu() {
         "$goback") show_menu ;;
         "Exit") exit 0 ;;
         "$primary_opt")
-            xrandr --output "$output" --primary
-            apply "$output set as primary"
+            run_xrandr "$output set as primary" --output "$output" --primary
             show_menu
             ;;
         # Prefix globs: both labels now carry their current value in
@@ -508,9 +565,18 @@ monitor_menu() {
         "Scale"*) scale_menu "$output" ;;
         "Rotate") rotate_menu "$output" ;;
         "Turn Off")
-            xrandr --output "$output" --off
-            apply "$output turned off"
-            show_menu
+            # Refuse to black out the last one. On a single-display
+            # machine this arm used to kill the only output *and*
+            # apply() would save that all-off state into the autorandr
+            # profile autostart restores -- so the next login came up
+            # black too, recoverable only from a TTY.
+            if is_active "$output" && [ "$(active_outputs | grep -c .)" -le 1 ]; then
+                notify-send "  Monitor" "Refusing to turn off the only active display."
+                monitor_menu "$output"
+            else
+                run_xrandr "$output turned off" --output "$output" --off
+                show_menu
+            fi
             ;;
     esac
 }
@@ -555,25 +621,35 @@ extend_menu() {
         "Exit") exit 0 ;;
     esac
 
-    xrandr --output "$output" --auto --output "$ref" --auto
-    xrandr --output "$output" "$flag" "$ref"
-    apply "$output extended ${dir_chosen,,} $ref"
+    # One call, not two. Enabling both and then positioning in a
+    # separate invocation means a visible reshuffle in between, and if
+    # the second one fails the layout is left half-applied while the
+    # notification still claims success.
+    run_xrandr "$output extended ${dir_chosen,,} $ref" \
+        --output "$ref" --auto --output "$output" --auto "$flag" "$ref"
     show_menu
 }
 
 mirror_all() {
-    local outputs primary rest
+    local outputs mode o args=()
     outputs=$(connected_outputs)
-    primary=$(echo "$outputs" | head -1)
-    rest=$(echo "$outputs" | tail -n +2)
 
-    xrandr --output "$primary" --auto
+    # Every panel has to be put on the *same* mode for this to be a
+    # mirror at all -- see common_mode(). Driving each one at its own
+    # preferred mode is what the previous --auto --same-as version did,
+    # and on mismatched panels that silently produced a crop instead.
+    mode=$(common_mode)
+    if [ -z "$mode" ]; then
+        notify-send "  Monitor" "No resolution all displays share -- cannot mirror."
+        show_menu
+        return
+    fi
+
     while IFS= read -r o; do
-        [ -z "$o" ] && continue
-        xrandr --output "$o" --auto --same-as "$primary"
-    done <<< "$rest"
+        [ -n "$o" ] && args+=(--output "$o" --mode "$mode" --pos 0x0)
+    done <<< "$outputs"
 
-    apply "All displays mirrored"
+    run_xrandr "All displays mirrored at $mode" "${args[@]}"
     show_menu
 }
 
@@ -596,15 +672,21 @@ single_display_menu() {
     keep=$(echo "$chosen" | grep -oP '\(\K[^)]+(?=\)$)')
     [ -z "$keep" ] && { show_menu; return; }
 
+    # Built up and handed to xrandr in one go: switching outputs off
+    # one call at a time can transiently leave the X screen with no
+    # active output at all, and a failure partway through would strand
+    # the layout with some already dark.
+    local args=()
     while IFS= read -r o; do
+        [ -z "$o" ] && continue
         if [ "$o" = "$keep" ]; then
-            xrandr --output "$o" --auto --primary
+            args+=(--output "$o" --auto --primary --pos 0x0)
         else
-            xrandr --output "$o" --off
+            args+=(--output "$o" --off)
         fi
     done <<< "$outputs"
 
-    apply "Using only $keep"
+    run_xrandr "Using only $keep" "${args[@]}"
     show_menu
 }
 

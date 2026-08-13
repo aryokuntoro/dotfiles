@@ -370,6 +370,13 @@ Restart Windows afterward.
   — a 43"-ish panel is genuinely ambiguous (desk monitor or TV?) and is
   assumed to be a TV. Projectors publish no panel size, so they get no
   suggestion at all and the prompt says so.
+- The monitor menu **refuses to turn off your last active display**. It
+  used to let you, and worse, `apply()` then saved that all-off state
+  into the same autorandr profile autostart restores — so the next login
+  came up black as well, recoverable only from a TTY. Layout changes
+  (mirror, single-display, extend) are also each issued as one atomic
+  `xrandr` call rather than several, and nothing is announced or
+  persisted unless `xrandr` actually exited 0.
 - **One DPI, one X screen.** X11 has no per-output DPI (that's a
   Wayland feature), so with two displays of different densities plugged
   in, `Xft.dpi` is still a single global value and one of them will be
