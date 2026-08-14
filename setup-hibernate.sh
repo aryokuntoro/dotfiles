@@ -36,7 +36,13 @@ ROOT_UUID=$(findmnt -no UUID /)
 
 echo "==> Root filesystem: $ROOT_FSTYPE, RAM: ${RAM_GIB}GiB, swapfile size: ${SIZE_GIB}GiB"
 
-avail_kib=$(df --output=avail /swap 2>/dev/null | tail -1 || df --output=avail / | tail -1)
+# Piping df into tail loses df's own exit status -- tail still exits 0
+# on empty input, so a failed `df /swap` (the normal case on a first
+# run, before the @swap subvolume below exists yet) never fell through
+# to the `/` fallback and left avail_kib empty, which the free-space
+# check below then read as 0 and aborted on every fresh install.
+avail_kib=$(df --output=avail /swap 2>/dev/null | tail -1)
+[ -n "$avail_kib" ] || avail_kib=$(df --output=avail / | tail -1)
 if [ "$((avail_kib / 1024 / 1024))" -lt "$SIZE_GIB" ]; then
     echo "Not enough free space for a ${SIZE_GIB}GiB swapfile." >&2
     exit 1
