@@ -183,7 +183,7 @@ sudo pacman -S i3-wm polybar rofi dunst picom \
 ### AUR (needs `paru`)
 
 ```sh
-paru -S gtkhash-thunar edid-decode betterlockscreen i3lock-color python-pywal16 greenclip bibata-cursor-theme
+paru -S gtkhash-thunar edid-decode betterlockscreen i3lock-color greenclip bibata-cursor-theme
 ```
 
 Don't have `paru` yet?

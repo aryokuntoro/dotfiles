@@ -108,7 +108,7 @@ pub const PACMAN_PACKAGES: &[&str] = &[
 
 /// Same deal -- kept in sync by hand with README.md's AUR section.
 pub const AUR_PACKAGES: &[&str] =
-    &["gtkhash-thunar", "edid-decode", "betterlockscreen", "i3lock-color", "python-pywal16", "greenclip", "bibata-cursor-theme"];
+    &["gtkhash-thunar", "edid-decode", "betterlockscreen", "i3lock-color", "greenclip", "bibata-cursor-theme"];
 
 /// Scans the repo's config/ and home/ directories and returns the checklist,
 /// grouped into Category sections in display order.
