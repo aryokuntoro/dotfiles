@@ -356,6 +356,32 @@ Restart Windows afterward.
   `i3/config` use `output right` (relative position, not a port name)
   so routing to the second monitor keeps working on any hardware
   without needing an edit.
+- **A cold boot can leave the TV's HDMI link flapping for over a
+  minute** before it settles — measured on this hardware at ~70
+  connect/disconnect cycles in the Xorg log after a single reboot. A
+  bare `autorandr --change` landing mid-storm can miss the EDID
+  fingerprint and apply nothing, so the session starts on whatever
+  fallback mode the driver guessed blind, oversized against a DPI set
+  for the real one. `autostart.sh` now sources
+  `autostart/scripts/wait-for-layout.sh` and calls
+  `wait_for_expected_layout`, which keeps retrying (`autorandr
+  --change`, `xrandr --auto` every third try) for up to 90s until the
+  live resolution actually matches the saved profile, and notifies if
+  it never does. Split into its own file specifically so
+  `tests/autostart.test.sh` can drive it under a stubbed `xrandr`
+  without pulling in `autostart.sh`'s own unconditional side effects
+  (`killall`, `picom &`, `gsettings`, …). This is separate from — and
+  upstream of — `polybar/launch.sh`'s own retry loop, which only checks
+  whether *anything* is connected, not whether it's at the right mode.
+- The ly greeter can render to a black screen for the same reason,
+  *before* any of this repo's config ever runs — ly draws to the
+  console the instant its service starts, which on a cold boot can be
+  before the TV has synced to the signal at all. Blind password entry
+  still works (ly itself is running, e.g. `ly-dm` in `ps`; only the TV
+  isn't displaying it yet) — nothing to fix here without editing the
+  system's `ly@.service` unit outside this repo's scope (an
+  `ExecStartPre=/bin/sleep N` drop-in trades a fixed boot delay for a
+  head start on the same link-training race).
 - UI scale (`$mod+F5` → a display → *Scale*) is done by **DPI**, not by
   `xrandr --scale`. `--scale` renders the desktop into a smaller
   framebuffer and lets the GPU stretch it back to the panel (150% =

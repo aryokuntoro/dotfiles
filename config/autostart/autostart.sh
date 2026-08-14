@@ -38,7 +38,21 @@ autotiling &
 # backgrounded would race, and polybar could start splitting
 # workspaces for whatever layout X happened to auto-configure instead
 # of the one autorandr is about to apply.
-autorandr --change
+#
+# A single `autorandr --change` used to be all this was: one attempt,
+# no retry. On a cold boot, HDMI-0's link to this TV was measured
+# hot-plugging on and off roughly 70 times over more than a minute
+# before settling (grep Xorg.0.log for "HDMI-0): connected" after a
+# reboot to see it happen again) -- a single autorandr --change landing
+# mid-storm can miss the TV's EDID fingerprint entirely and apply
+# nothing, leaving the session on whatever fallback mode the driver
+# guessed blind. See scripts/wait-for-layout.sh, which retries until
+# the real layout is actually up (or gives up and says so) -- split
+# into its own file so tests/autostart.test.sh can exercise it without
+# dragging in everything below (killall, picom &, gsettings, ...).
+# shellcheck source=config/autostart/scripts/wait-for-layout.sh
+source ~/.config/autostart/scripts/wait-for-layout.sh
+wait_for_expected_layout
 
 # ── Status Bar ────────────────────────────────────────────────
 ~/.config/polybar/launch.sh &
