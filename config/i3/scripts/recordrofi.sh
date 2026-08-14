@@ -97,7 +97,13 @@ case "$choice" in
         notify-send "  Recording" "Started: Full Screen Video"
         ;;
     *Select\ Area\ Video*)
-        selection=$(slop -f "%x,%y,%w,%h" -b 2 -c 0.8,0.8,0.8,0.5 -l)
+        # -t 0 disables slop's click-to-select-a-window fallback (its
+        # default tolerance still lets a very still/precise click snap to
+        # whatever window is under the cursor instead of the dragged
+        # rectangle) -- these are all "select an area" arms and should
+        # always be a free-form drag, same reasoning as screenshot.sh's
+        # Select Area vs. Pick Window.
+        selection=$(slop -t 0 -f "%x,%y,%w,%h" -b 2 -c 0.8,0.8,0.8,0.5 -l)
         if [ -n "$selection" ]; then
             IFS=',' read -r x y w h <<< "$selection"
             ffmpeg -f x11grab -video_size "${w}x${h}" -framerate "$framerate" \
@@ -114,7 +120,13 @@ case "$choice" in
         notify-send "  Recording" "Started: Full Screen + Audio"
         ;;
     *Select\ Area\ +\ Audio*)
-        selection=$(slop -f "%x,%y,%w,%h" -b 2 -c 0.8,0.8,0.8,0.5 -l)
+        # -t 0 disables slop's click-to-select-a-window fallback (its
+        # default tolerance still lets a very still/precise click snap to
+        # whatever window is under the cursor instead of the dragged
+        # rectangle) -- these are all "select an area" arms and should
+        # always be a free-form drag, same reasoning as screenshot.sh's
+        # Select Area vs. Pick Window.
+        selection=$(slop -t 0 -f "%x,%y,%w,%h" -b 2 -c 0.8,0.8,0.8,0.5 -l)
         if [ -n "$selection" ]; then
             IFS=',' read -r x y w h <<< "$selection"
             ffmpeg -f x11grab -video_size "${w}x${h}" -framerate "$framerate" \
@@ -140,7 +152,13 @@ case "$choice" in
         notify-send "  Recording" "Started: Full Screen + Webcam"
         ;;
     *Select\ Area\ +\ Webcam*)
-        selection=$(slop -f "%x,%y,%w,%h" -b 2 -c 0.8,0.8,0.8,0.5 -l)
+        # -t 0 disables slop's click-to-select-a-window fallback (its
+        # default tolerance still lets a very still/precise click snap to
+        # whatever window is under the cursor instead of the dragged
+        # rectangle) -- these are all "select an area" arms and should
+        # always be a free-form drag, same reasoning as screenshot.sh's
+        # Select Area vs. Pick Window.
+        selection=$(slop -t 0 -f "%x,%y,%w,%h" -b 2 -c 0.8,0.8,0.8,0.5 -l)
         if [ -n "$selection" ]; then
             IFS=',' read -r x y w h <<< "$selection"
             webcam_res="320x240"
@@ -167,7 +185,13 @@ case "$choice" in
         notify-send "  Recording" "Started: GIF Full Screen"
         ;;
     *GIF\ Select\ Area*)
-        selection=$(slop -f "%x,%y,%w,%h" -b 2 -c 0.8,0.8,0.8,0.5 -l)
+        # -t 0 disables slop's click-to-select-a-window fallback (its
+        # default tolerance still lets a very still/precise click snap to
+        # whatever window is under the cursor instead of the dragged
+        # rectangle) -- these are all "select an area" arms and should
+        # always be a free-form drag, same reasoning as screenshot.sh's
+        # Select Area vs. Pick Window.
+        selection=$(slop -t 0 -f "%x,%y,%w,%h" -b 2 -c 0.8,0.8,0.8,0.5 -l)
         if [ -n "$selection" ]; then
             IFS=',' read -r x y w h <<< "$selection"
             gif_output="$dir/recording_$timestamp.gif"

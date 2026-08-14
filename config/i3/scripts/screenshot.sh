@@ -32,7 +32,13 @@ case "$choice" in
         notify-send "  Screenshot" "Copied to clipboard"
         ;;
     *Select\ Area\ +\ Copy*)
-        selection=$(slop -f "%x,%y,%w,%h" -b 2 -c 0.8,0.8,0.8,0.5 -l)
+        # -t 0 disables slop's click-to-select-a-window fallback (its
+        # default tolerance of 2px still lets a very still/precise click
+        # snap to whatever window is under the cursor instead of the
+        # dragged rectangle) -- Select Area should always be a free-form
+        # drag, never accidentally snap to a whole window the way Pick
+        # Window's -t 999999 deliberately does.
+        selection=$(slop -t 0 -f "%x,%y,%w,%h" -b 2 -c 0.8,0.8,0.8,0.5 -l)
         if [ -n "$selection" ]; then
             IFS=',' read -r x y w h <<< "$selection"
             ffmpeg -f x11grab -video_size "${w}x${h}" -framerate 1 \
@@ -61,7 +67,13 @@ case "$choice" in
         notify-send "  Screenshot" "Saved: $dir/screenshot_$timestamp.png"
         ;;
     *Select\ Area*)
-        selection=$(slop -f "%x,%y,%w,%h" -b 2 -c 0.8,0.8,0.8,0.5 -l)
+        # -t 0 disables slop's click-to-select-a-window fallback (its
+        # default tolerance of 2px still lets a very still/precise click
+        # snap to whatever window is under the cursor instead of the
+        # dragged rectangle) -- Select Area should always be a free-form
+        # drag, never accidentally snap to a whole window the way Pick
+        # Window's -t 999999 deliberately does.
+        selection=$(slop -t 0 -f "%x,%y,%w,%h" -b 2 -c 0.8,0.8,0.8,0.5 -l)
         if [ -n "$selection" ]; then
             IFS=',' read -r x y w h <<< "$selection"
             ffmpeg -f x11grab -video_size "${w}x${h}" -framerate 1 \
