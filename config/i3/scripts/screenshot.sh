@@ -15,10 +15,10 @@ screen_size() {
 }
 
 # Rofi menu for screenshot options
-options=" Full Screen\n  Select Area\n  Active Window\n  Full Screen + Copy\n  Select Area + Copy"
+options=" Full Screen\n  Select Area\n  Pick Window\n  Active Window\n  Full Screen + Copy\n  Select Area + Copy\n  Pick Window + Copy"
 
 choice=$(echo -e "$options" | rofi -dmenu -i -p "Screenshot:" \
-    -theme ~/.config/rofi/themes/current.rasi -no-config -lines 5)
+    -theme ~/.config/rofi/themes/current.rasi -no-config -lines 7)
 
 # The "+ Copy" arms MUST stay above the plain ones: every pattern here
 # is wrapped in *...*, so *Full\ Screen* also matches the menu string
@@ -40,6 +40,21 @@ case "$choice" in
             notify-send "  Screenshot" "Copied to clipboard"
         fi
         ;;
+    *Pick\ Window\ +\ Copy*)
+        # -t 999999 forces slop into click-only (no drag) window-picking
+        # mode: click any visible window, even an unfocused one, to grab
+        # its bounds -- unlike "Active Window", which can only capture
+        # whichever window already has focus. -n strips window manager
+        # decorations from the pick so the capture is just the window's
+        # own content, matching what "Active Window" grabs.
+        selection=$(slop -t 999999 -n -f "%x,%y,%w,%h" -b 2 -c 0.8,0.8,0.8,0.5 -l)
+        if [ -n "$selection" ]; then
+            IFS=',' read -r x y w h <<< "$selection"
+            ffmpeg -f x11grab -video_size "${w}x${h}" -framerate 1 \
+                -i "$DISPLAY+$x,$y" -vframes 1 -f image2pipe -vcodec png - 2>/dev/null | xclip -selection clipboard -t image/png
+            notify-send "  Screenshot" "Copied to clipboard"
+        fi
+        ;;
     *Full\ Screen*)
         ffmpeg -f x11grab -video_size "$(screen_size)" \
             -framerate 1 -i "$DISPLAY" -vframes 1 "$dir/screenshot_$timestamp.png" -y 2>/dev/null
@@ -52,6 +67,15 @@ case "$choice" in
             ffmpeg -f x11grab -video_size "${w}x${h}" -framerate 1 \
                 -i "$DISPLAY+$x,$y" -vframes 1 "$dir/screenshot_$timestamp.png" -y 2>/dev/null
             notify-send "  Screenshot" "Saved: $dir/screenshot_$timestamp.png"
+        fi
+        ;;
+    *Pick\ Window*)
+        selection=$(slop -t 999999 -n -f "%x,%y,%w,%h" -b 2 -c 0.8,0.8,0.8,0.5 -l)
+        if [ -n "$selection" ]; then
+            IFS=',' read -r x y w h <<< "$selection"
+            ffmpeg -f x11grab -video_size "${w}x${h}" -framerate 1 \
+                -i "$DISPLAY+$x,$y" -vframes 1 "$dir/screenshot_$timestamp.png" -y 2>/dev/null
+            notify-send "  Screenshot" "Saved: $dir/screenshot_$timestamp.png"
         fi
         ;;
     *Active\ Window*)
