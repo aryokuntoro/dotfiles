@@ -18,9 +18,12 @@ set $theme ~/.config/i3/scripts/theme-switch.sh
 font pango:JetBrainsMono Nerd Font 10
 
 # ── Autostart ──────────────────────────────────────────────────
+# Wallpaper is set inside autostart.sh (restores current_wallpaper,
+# falling back to the default) -- a second, hardcoded `feh` call used
+# to run here in parallel and could win the race, silently reverting
+# a chosen wallpaper back to the default on every i3 (re)start.
 exec_always --no-startup-id systemctl --user import-environment DISPLAY XAUTHORITY && dbus-update-activation-environment --systemd DISPLAY XAUTHORITY
 exec_always --no-startup-id ~/.config/autostart/autostart.sh
-exec_always --no-startup-id feh --bg-scale ~/Pictures/Wallpapers/wallpaper.jpg
 exec --no-startup-id ~/.config/i3/scripts/init-workspaces.sh
 
 # ── Gap & Borders ─────────────────────────────────────────────
@@ -221,7 +224,10 @@ bindsym $mod+Ctrl+Return  scratchpad show
 bindsym $mod+Shift+c      reload
 bindsym $mod+Shift+r      restart
 
-# ── Colors (dynamic via pywal) ─────────────────────────────────
+# ── Client colors ────────────────────────────────────────────────
+# Uses the $accent/$bg/$fg/... variables from the COLORS-START block
+# above, which theme-switch.sh/apply-theme-colors.sh rewrite from the
+# active rofi theme's .rasi palette -- not pywal (see theme-switch.sh).
 # class border      backgr.     text        indicator   child_border
 client.focused          $accent     $accent     $fg         $accent2    $accent
 client.focused_inactive $bg $bg         $fg         $bg         $bg
