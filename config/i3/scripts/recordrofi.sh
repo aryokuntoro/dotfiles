@@ -76,21 +76,32 @@ detect_hwenc() {
 # with. p4 is NVENC's "medium" preset in the modern p1(fastest)-
 # p7(slowest) scheme, the closest match to x264's "fast" as a
 # speed/quality compromise for realtime capture.
+#
+# -pix_fmt yuv420p matters more than it looks like it should: x11grab's
+# native capture format is full-chroma BGRA, and libx264 given that
+# directly with no explicit -pix_fmt encodes it as yuv444p / "High 4:4:4
+# Predictive" instead of downsampling to the universally-supported
+# yuv420p / "High" -- confirmed with ffprobe, not assumed. Most players'
+# hardware decode paths, mpv included, don't handle 4:4:4 well, which is
+# exactly what "recording plays back laggy" turned out to be. NVENC
+# happened to already default to yuv420p on this machine, but it costs
+# nothing to pin it explicitly on both paths rather than depend on that
+# holding true on a different GPU/driver/ffmpeg version too.
 vcodec_opts_for_quality() {
     local value="$1"
     if [ "$(detect_hwenc)" = nvenc ]; then
-        vcodec_opts=(-c:v h264_nvenc -rc vbr -cq "$value" -preset p4)
+        vcodec_opts=(-c:v h264_nvenc -rc vbr -cq "$value" -preset p4 -pix_fmt yuv420p)
     else
-        vcodec_opts=(-c:v libx264 -preset fast -crf "$value")
+        vcodec_opts=(-c:v libx264 -preset fast -crf "$value" -pix_fmt yuv420p)
     fi
 }
 
 vcodec_opts_for_bitrate() {
     local bitrate="$1"
     if [ "$(detect_hwenc)" = nvenc ]; then
-        vcodec_opts=(-c:v h264_nvenc -preset p4 -b:v "$bitrate")
+        vcodec_opts=(-c:v h264_nvenc -preset p4 -b:v "$bitrate" -pix_fmt yuv420p)
     else
-        vcodec_opts=(-c:v libx264 -preset fast -b:v "$bitrate")
+        vcodec_opts=(-c:v libx264 -preset fast -b:v "$bitrate" -pix_fmt yuv420p)
     fi
 }
 
@@ -184,30 +195,49 @@ hwenc_label=""
 # default` fails outright with "Error opening input: Input/output
 # error", and so does `-i ""` (the documented ffmpeg-pulse convention
 # for "use whatever the default is"). Resolved by hand instead, via
-# `pactl get-default-source`, which reliably returns the real source
-# name (confirmed: feeding that name to ffmpeg works). Falls back to
-# the literal "default" only if pactl itself has no answer, on the
-# theory that whatever this used to do is better than refusing to
-# record entirely.
+# pactl, which reliably returns real device names (confirmed: feeding
+# one to ffmpeg works where the literal "default" string did not).
 #
-# Sources are queried live via pactl rather than assuming one exists: a
-# *.monitor source captures system audio (whatever is playing), a plain
-# one is a real input (built-in mic, or an external USB mic if one is
-# plugged in) -- labelled differently so the menu doesn't read as one
-# undifferentiated list.
-audio_source=$(pactl get-default-source 2>/dev/null)
-[ -z "$audio_source" ] && audio_source="default"
+# "System Audio" and "Microphone" are two different pactl concepts, not
+# one "default" -- a mic input (get-default-source) captures whatever a
+# physical microphone picks up, near-silence most of the time, while
+# system audio is the *.monitor of the default *sink* (get-default-
+# sink), which is what's actually playing (a YouTube tab, etc). Putting
+# only one ambiguous "System Default" in front of both, resolving to
+# the mic, is exactly how a recording meant to capture a video's audio
+# ends up silent -- so both are offered explicitly, System Audio first
+# since "record what's on screen" is the more common reason to be in
+# an Audio mode at all. Any other source pactl reports (a second mic, a
+# non-default monitor) is still listed below both for less common cases.
+default_sink=$(pactl get-default-sink 2>/dev/null)
+default_source=$(pactl get-default-source 2>/dev/null)
+audio_source="${default_sink:+${default_sink}.monitor}"
+[ -z "$audio_source" ] && audio_source="${default_source:-default}"
 if [[ "$choice" == *Audio* ]]; then
-    mapfile -t audio_names < <(pactl list sources short 2>/dev/null | awk -F'\t' '{print $2}')
-    audio_labels=("  System Default")
-    audio_values=("$audio_source")
-    for src in "${audio_names[@]}"; do
+    mapfile -t all_sources < <(pactl list sources short 2>/dev/null | awk -F'\t' '{print $2}')
+    audio_labels=()
+    audio_values=()
+    if [ -n "$default_sink" ]; then
+        audio_labels+=("  System Audio (what's playing)")
+        audio_values+=("${default_sink}.monitor")
+    fi
+    if [ -n "$default_source" ]; then
+        audio_labels+=("  Microphone (default)")
+        audio_values+=("$default_source")
+    fi
+    for src in "${all_sources[@]}"; do
+        [ "$src" = "${default_sink}.monitor" ] && continue
+        [ "$src" = "$default_source" ] && continue
         case "$src" in
             *.monitor) audio_labels+=("  System Audio -- $src") ;;
             *)         audio_labels+=("  Mic -- $src") ;;
         esac
         audio_values+=("$src")
     done
+    if [ "${#audio_labels[@]}" -eq 0 ]; then
+        notify-send "  Record" "No audio sources found (pactl list sources returned nothing)"
+        exit 1
+    fi
     audio_choice=$(printf '%s\n' "${audio_labels[@]}" | \
         rofi -dmenu -i -p "Audio Source:" -theme "$theme" -no-config -format i -lines "${#audio_labels[@]}")
     [ -z "$audio_choice" ] && exit 0
@@ -361,7 +391,7 @@ case "$choice" in
                 ${scale_vf:+-vf "$scale_vf"} "${vcodec_opts[@]}" "$video_out" -y &
             save_rec "$!" "$video_out"
             ffmpeg -f v4l2 -video_size "$webcam_res" -i "$webcam_device" \
-                -c:v libx264 -preset veryfast -crf 23 "$webcam_out" -y &
+                -c:v libx264 -preset veryfast -crf 23 -pix_fmt yuv420p "$webcam_out" -y &
             save_rec "$!" "$webcam_out"
             notify-send "  Recording" "Started: Full Screen + Webcam (separate files)$hwenc_label"
         else
@@ -397,7 +427,7 @@ case "$choice" in
                     -i "$DISPLAY+$x,$y" ${scale_vf:+-vf "$scale_vf"} "${vcodec_opts[@]}" "$video_out" -y &
                 save_rec "$!" "$video_out"
                 ffmpeg -f v4l2 -video_size "$webcam_res" -i "$webcam_device" \
-                    -c:v libx264 -preset veryfast -crf 23 "$webcam_out" -y &
+                    -c:v libx264 -preset veryfast -crf 23 -pix_fmt yuv420p "$webcam_out" -y &
                 save_rec "$!" "$webcam_out"
                 notify-send "  Recording" "Started: Select Area + Webcam (separate files)$hwenc_label"
             else
