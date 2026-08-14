@@ -239,12 +239,14 @@ gtk_folder_for_accent() {
 }
 
 saved_accent=$(cat "$HOME/.cache/theme-accent" 2>/dev/null)
+accent_overridden=""
 if [ -n "$theme_family" ] && [ -n "$saved_accent" ]; then
     override_hex=$(accent_hex "$theme_family" "$theme_mode" "$saved_accent")
     override_folder=$(gtk_folder_for_accent "$theme_family" "$theme_mode" "$saved_accent")
     if [ -n "$override_hex" ] && [ -d "$HOME/.themes/$override_folder" ]; then
         accent="$override_hex"
         gtk_theme="$override_folder"
+        accent_overridden=1
     fi
 fi
 
@@ -340,6 +342,42 @@ cat > "$HOME/.config/rofi/themes/shared.rasi" << EOF
     urgent: $urgent;
 }
 EOF
+
+# ── Rofi's own primary theme file ─────────────────────────────────
+# current.rasi is a symlink (managed by theme-switch.sh) into this
+# live ~/.config/rofi/themes copy of the family file ($theme_path) --
+# every drun/run/window/calc/emoji/clipboard/wallpaper invocation reads
+# it directly rather than shared.rasi above, so without this, an accent
+# picked in rofi-accent.sh reached i3/dunst/polybar/the special-purpose
+# menus but never rofi's own primary menus, which kept showing the
+# family's built-in accent regardless of what was picked.
+#
+# Appended as its own cascading block rather than editing the file's
+# own top-of-file "accent: ..." line in place: that line is also this
+# script's *read* source for the un-overridden default (get_color,
+# above) on every future run, for this family and every other one --
+# overwriting it would make an old override stick permanently as the
+# new "default" once written, surviving even switching to a different
+# theme and back. rofi's rasi cascade applies later blocks over
+# earlier ones for the same property (confirmed with `rofi
+# -dump-theme`), so a small block appended at the end wins for actual
+# rendering while leaving the original line, and therefore get_color's
+# reading of it, untouched.
+strip_marker="/* ACCENT-OVERRIDE-START */"
+awk -v strip="$strip_marker" '
+    $0 == strip { skip = 1; next }
+    /\/\* ACCENT-OVERRIDE-END \*\// { skip = 0; next }
+    !skip { print }
+' "$theme_path" > "$theme_path.tmp"
+if [ -n "$accent_overridden" ]; then
+    {
+        cat "$theme_path.tmp"
+        printf '\n%s\n* { accent: %s; }\n/* ACCENT-OVERRIDE-END */\n' "$strip_marker" "$accent"
+    } > "$theme_path"
+    rm -f "$theme_path.tmp"
+else
+    mv "$theme_path.tmp" "$theme_path"
+fi
 
 # ── Xresources ───────────────────────────────────────────────────
 # Drives Xft.* consumers and any Xresources-based app (URxvt, xterm,
