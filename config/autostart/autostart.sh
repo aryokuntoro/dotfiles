@@ -156,16 +156,40 @@ command -v xss-lock >/dev/null 2>&1 && xss-lock -- ~/.config/i3/scripts/idle-loc
     done
 ) &
 
-# ── HDMI color range (NVIDIA + TV output) ─────────────────────
-# NVIDIA sends Full range (0-255) RGB by default. HDMI-0 here is a TV
+# ── HDMI color range (TV output) ───────────────────────────────
+# GPUs commonly default to Full range (0-255) RGB. HDMI-0 here is a TV
 # rather than a real PC monitor and washes out/crushes blacks under
 # Full range, so force Limited (16-235) -- what TVs actually expect
-# over HDMI. No-ops harmlessly on a machine without nvidia-settings or
-# without an HDMI-0 output.
-# Delayed (like numlockx above): right after X starts, the NVIDIA
-# driver is still repeatedly probing/mode-setting the TV over HDMI for
-# a couple seconds, and a ColorRange set during that window gets
-# silently reset once probing settles. Give it a few seconds first.
-( sleep 3; command -v nvidia-settings >/dev/null 2>&1 && nvidia-settings -a "[HDMI-0]/ColorRange=1" >/dev/null 2>&1 ) &
+# over HDMI.
+#
+# Delayed (like numlockx above): right after X starts, the driver is
+# still repeatedly probing/mode-setting the TV over HDMI for a couple
+# seconds, and a range set during that window gets silently reset once
+# probing settles. Give it a few seconds first.
+#
+# Two ways to set it, tried in order -- which one applies depends on
+# which driver actually owns the GPU, not a choice made here:
+#   - NVIDIA's proprietary driver doesn't expose this as a normal
+#     xrandr connector property at all, so nvidia-settings is the only
+#     way to reach it, and only it understands the [HDMI-0]/ColorRange
+#     target name.
+#   - The open-source i915 (Intel) and amdgpu (AMD) kernel drivers both
+#     expose it as a standard "Broadcast RGB" xrandr output property
+#     instead -- checked for before setting it, since asking xrandr to
+#     set a property an output doesn't have is an error, not a no-op.
+# Whichever of the two is missing/inapplicable on a given machine, the
+# other branch (or neither, on a GPU with no HDMI-0 at all) is a no-op.
+(
+    sleep 3
+    if command -v nvidia-settings >/dev/null 2>&1; then
+        nvidia-settings -a "[HDMI-0]/ColorRange=1" >/dev/null 2>&1
+    elif xrandr --props | awk '
+            /^HDMI-0 (connected|disconnected)/ { inblock = 1; next }
+            /^[A-Za-z0-9-]+ (connected|disconnected)/ { inblock = 0 }
+            inblock
+        ' | grep -q "Broadcast RGB"; then
+        xrandr --output HDMI-0 --set "Broadcast RGB" "Limited 16:235" >/dev/null 2>&1
+    fi
+) &
 
 echo "Autostart complete."
