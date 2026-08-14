@@ -60,8 +60,15 @@ class SafeConfigParser(configparser.ConfigParser):
 
 CONF = SafeConfigParser()
 
-# Default config paths
-default_config_dir = expanduser("~/.config/bspwm/config")
+# Default config paths. Matches this file's own docstring/CLI --help text
+# above ("~/.config/networkmanager-dmenu/config.ini") -- it used to point at
+# ~/.config/bspwm/config instead, a leftover from a bspwm setup this repo
+# never actually used, silently inconsistent with what the script itself
+# documented as the default. This only matters when NetManagerDM.sh is
+# invoked without --config at all, or with a --config path that turns out
+# not to exist -- rofi-network.sh always passes one that exists, so this is
+# a fallback for running the script directly / by hand.
+default_config_dir = expanduser("~/.config/networkmanager-dmenu")
 default_config_path = os.path.join(default_config_dir, "NetManagerDM.ini")
 
 
@@ -152,8 +159,21 @@ def detect_installed_terminals():
     return [terminal for terminal in COMMON_TERMINALS if is_installed(terminal)]
 
 
-def prompt_command_line(prompt, options):
-    """Prompt the user for a selection via command line"""
+def prompt_command_line(prompt, options, preferred=None):
+    """Prompt the user for a selection via command line.
+
+    Launched from an i3 keybinding (as this repo's rofi-network.sh does),
+    stdin is not a real terminal -- input() would either raise EOFError
+    immediately or, worse, block forever with no prompt visible anywhere,
+    hanging the keypress. When there's nothing interactive to read from,
+    pick `preferred` if it's one of the options, else the first one, and
+    say so instead of prompting.
+    """
+    if not sys.stdin.isatty():
+        choice = preferred if preferred in options else options[0]
+        print(f"\n{prompt}\nNon-interactive session -- using: {choice}")
+        return choice
+
     print(f"\n{prompt}")
     for i, option in enumerate(options, 1):
         print(f"{i}. {option}")
@@ -193,7 +213,11 @@ def setup_initial_config():
         print("Please install one of the supported launchers and try again.")
         return False
 
-    # Prompt user to choose launcher
+    # Prompt user to choose launcher. This repo always invokes
+    # NetManagerDM.sh as a rofi frontend (rofi-network.sh), so if this
+    # ever runs uninteractively (see prompt_command_line) with several
+    # launchers installed, "rofi" is the one that actually matches how
+    # it's being called -- not whichever SUPPORTED_LAUNCHERS lists first.
     chosen_launcher = None
     if len(installed_launchers) == 1:
         chosen_launcher = installed_launchers[0]
@@ -201,7 +225,9 @@ def setup_initial_config():
     else:
         print("Multiple launchers detected.")
         chosen_launcher = prompt_command_line(
-            "Which launcher would you like to use?", installed_launchers
+            "Which launcher would you like to use?",
+            installed_launchers,
+            preferred="rofi",
         )
 
     # Detect installed terminals
@@ -210,16 +236,24 @@ def setup_initial_config():
 
     if not installed_terminals:
         print("No common terminals detected.")
-        custom_terminal = input("Enter the name of your terminal: ")
-        if custom_terminal.strip():
-            chosen_terminal = custom_terminal.strip()
+        if sys.stdin.isatty():
+            custom_terminal = input("Enter the name of your terminal: ")
+            if custom_terminal.strip():
+                chosen_terminal = custom_terminal.strip()
+        # Non-interactive with nothing detected: leave chosen_terminal
+        # None -- generate_default_config() below falls back to "xterm".
     elif len(installed_terminals) == 1:
         chosen_terminal = installed_terminals[0]
         print(f"Found terminal: {chosen_terminal}")
     else:
         print("Multiple terminals detected.")
+        # Same reasoning as the launcher pick above: this repo's i3
+        # config sets kitty as $terminal, so prefer it over an
+        # arbitrary alphabetical pick when nothing is there to ask.
         chosen_terminal = prompt_command_line(
-            "Which terminal would you like to use?", installed_terminals
+            "Which terminal would you like to use?",
+            installed_terminals,
+            preferred="kitty",
         )
 
     # Create config file with user's preferences

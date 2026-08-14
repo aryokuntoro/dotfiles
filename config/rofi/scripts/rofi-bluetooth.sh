@@ -16,6 +16,17 @@
 # Depends on:
 #   Arch repositories: rofi, bluez-utils (contains bluetoothctl), bc
 
+# Fail loudly instead of erroring out mid-menu (or, for --status, printing
+# nothing to the bar with no clue why) on a system missing one of these.
+for _dep in rofi bluetoothctl bc rfkill; do
+    if ! command -v "$_dep" >/dev/null 2>&1; then
+        printf 'rofi-bluetooth: missing required command: %s\n' "$_dep" >&2
+        command -v notify-send >/dev/null 2>&1 &&
+            notify-send "  Bluetooth" "Missing required command: $_dep"
+        exit 1
+    fi
+done
+
 # Constants
 divider="---------"
 goback="Back"

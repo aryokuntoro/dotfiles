@@ -12,6 +12,30 @@
 BASE_MOUNT_POINT="$HOME/Android_Mount"
 ROFI_THEME="$HOME/.config/rofi/themes/Android.rasi"
 
+# Fail loudly instead of showing an empty/broken rofi menu -- simple-mtpfs
+# is an AUR package (not in the official repos) and easy to be missing on
+# a system this hasn't been installed on yet.
+for dep in rofi simple-mtpfs dunstify; do
+	if ! command -v "$dep" >/dev/null 2>&1; then
+		notify-send "  Android Mount" "Missing required command: $dep" 2>/dev/null
+		echo "AndroidMount: missing required command: $dep" >&2
+		exit 1
+	fi
+done
+
+# fusermount (FUSE2) vs fusermount3 (FUSE3): which name exists depends on
+# how libfuse was installed, and a future/different system may ship only
+# one of the two.
+if command -v fusermount3 >/dev/null 2>&1; then
+	FUSERMOUNT="fusermount3"
+elif command -v fusermount >/dev/null 2>&1; then
+	FUSERMOUNT="fusermount"
+else
+	notify-send "  Android Mount" "Missing required command: fusermount/fusermount3" 2>/dev/null
+	echo "AndroidMount: missing required command: fusermount/fusermount3" >&2
+	exit 1
+fi
+
 list_devices() {
 	simple-mtpfs -l | awk -F': ' '{print $1 " " $2}' | rofi -dmenu -p "Select device" -theme "$ROFI_THEME"
 }
@@ -36,7 +60,7 @@ mount_device() {
 
 unmount_device() {
 	MOUNT_POINT=$1
-	if fusermount -u "$MOUNT_POINT"; then
+	if "$FUSERMOUNT" -u "$MOUNT_POINT"; then
 		dunstify -i phone -a Android "Android Unmount" "Android device unmounted from $MOUNT_POINT"
 		rmdir "$MOUNT_POINT"
 	else
