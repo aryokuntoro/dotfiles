@@ -40,8 +40,13 @@ list_devices() {
 	simple-mtpfs -l | awk -F': ' '{print $1 " " $2}' | rofi -dmenu -p "Select device" -theme "$ROFI_THEME"
 }
 
+# mountpoint -q rather than `mount | grep "$1"`: an unanchored substring
+# grep against the whole `mount` table falsely matched when one device's
+# mount point is a prefix of another's (e.g. "Pixel 6" vs "Pixel 6 Pro"),
+# reporting a still-mounted "Pixel 6 Pro" as if "Pixel 6" itself were
+# mounted. mountpoint checks the exact path.
 is_mounted() {
-	mount | grep "$1" >/dev/null
+	mountpoint -q "$1"
 }
 
 mount_device() {

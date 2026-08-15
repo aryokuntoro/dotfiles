@@ -10,6 +10,13 @@ set -euo pipefail
 # Guest access (no password) chosen per user request -- fine for a
 # trusted home LAN, not for anything internet-facing.
 
+# Checked before anything else runs: $SUDO_USER is only set when this
+# was invoked via `sudo` from a normal user session. Run as a raw root
+# login (or via `su`) instead, it's unset, and under `set -u` the
+# script used to abort partway through -- after already creating the
+# sambashare group -- instead of failing before touching anything.
+: "${SUDO_USER:?SUDO_USER is not set. Run this via: sudo $0}"
+
 echo "==> Creating sambashare group"
 groupadd -f sambashare
 

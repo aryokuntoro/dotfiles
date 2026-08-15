@@ -55,6 +55,13 @@ done
 
 choice=$(printf '%s\n' "${labels[@]}" | rofi -dmenu -i -p "Resolution:" -theme "$theme" -no-config -format i -lines 12)
 [ -z "$choice" ] && exit 0
+# rofi -format i prints -1 for free text typed that doesn't match any
+# listed row, not just for Escape/empty input -- bash silently resolves
+# a negative array index to counting from the end instead of erroring,
+# so an unrecognized entry used to pick the *last* format/conversion
+# option with no indication anything was mistyped. Reject anything
+# that isn't a real non-negative row index instead.
+[[ "$choice" =~ ^[0-9]+$ ]] || exit 0
 
 if [ "$choice" -eq 0 ]; then
     outdir="$HOME/Music"
@@ -62,6 +69,7 @@ if [ "$choice" -eq 0 ]; then
     audio_formats=("  Keep original (best)" "  .mp3" "  .m4a" "  .opus" "  .wav" "  .flac")
     afmt_choice=$(printf '%s\n' "${audio_formats[@]}" | rofi -dmenu -i -p "Convert audio to:" -theme "$theme" -no-config -format i -lines 6)
     [ -z "$afmt_choice" ] && exit 0
+    [[ "$afmt_choice" =~ ^[0-9]+$ ]] || exit 0
 
     if [ "$afmt_choice" -eq 0 ]; then
         args=(-x)
@@ -81,6 +89,7 @@ else
     video_formats=("  Keep original (no remux)" "  .mp4" "  .mkv" "  .webm" "  .mov" "  .avi")
     vfmt_choice=$(printf '%s\n' "${video_formats[@]}" | rofi -dmenu -i -p "Convert video to:" -theme "$theme" -no-config -format i -lines 6)
     [ -z "$vfmt_choice" ] && exit 0
+    [[ "$vfmt_choice" =~ ^[0-9]+$ ]] || exit 0
 
     if [ "$vfmt_choice" -eq 0 ]; then
         args=("${fargs[@]}")

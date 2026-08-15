@@ -15,6 +15,12 @@
 # Kill existing instances
 killall picom dunst polybar greenclip udiskie autotiling xss-lock 2>/dev/null
 pkill -f polkit-gnome-authentication-agent 2>/dev/null
+# battery-notify.sh is a `while true` loop with no lock file (unlike
+# polybar/launch.sh's flock) -- without this it would never be killed
+# here and every i3 restart (exec_always runs this whole script) would
+# leave the previous instance running, all racing on the same
+# ~/.cache/battery-notify-state file.
+pkill -f battery-notify.sh 2>/dev/null
 sleep 0.5
 
 # ── Polkit ────────────────────────────────────────────────────

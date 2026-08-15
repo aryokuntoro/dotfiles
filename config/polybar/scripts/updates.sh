@@ -19,7 +19,19 @@ color() {
 ACCENT=$(color accent)
 FG=$(color foreground)
 
-repo_aur_out=$(paru -Qu 2>/dev/null) || repo_aur_out=$(pacman -Qu 2>/dev/null)
+# `paru -Qu` exits non-zero both on a real failure and on the
+# everyday case of simply having nothing to upgrade -- `||
+# pacman -Qu` treated both the same, so every ordinary "0 updates"
+# poll re-ran pacman for no reason, doubling pacman invocations on
+# this bar's poll interval. stderr is what actually distinguishes
+# them: a genuine failure (AUR RPC unreachable, paru itself broken)
+# prints something there; "0 updates" does not.
+repo_aur_err_file=$(mktemp)
+trap 'rm -f "$repo_aur_err_file"' EXIT
+repo_aur_out=$(paru -Qu 2>"$repo_aur_err_file")
+if [ -s "$repo_aur_err_file" ]; then
+    repo_aur_out=$(pacman -Qu 2>/dev/null)
+fi
 repo_aur=0
 [ -n "$repo_aur_out" ] && repo_aur=$(printf '%s\n' "$repo_aur_out" | wc -l)
 flat=$(flatpak remote-ls --updates 2>/dev/null | wc -l)

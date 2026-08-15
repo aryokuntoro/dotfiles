@@ -565,19 +565,28 @@ def rescan_wifi():
     Rescan WiFi Access Points
     """
     delay = CONF.getint("nmdm", "rescan_delay", fallback=5)
+    # main() rebuilds the whole menu from scratch and never returns
+    # back into this loop on any normal path (it recurses into the
+    # next user selection instead) -- calling it from inside the loop
+    # meant only the first WiFi device on a multi-adapter machine ever
+    # got scanned; every device is scanned first, main() called once
+    # after, so a second adapter isn't silently skipped.
+    scanned = False
     for dev in CLIENT.get_devices():
         if gi.repository.NM.DeviceWifi is type(dev):
             try:
                 dev.request_scan_async(None, rescan_cb, None)
                 LOOP.run()
-                sleep(delay)
-                notify("WiFi scan complete")
-                main()
+                scanned = True
             except gi.repository.GLib.Error as err:
                 # Too frequent rescan error
                 notify("WiFi rescan failed", urgency="critical")
                 if not err.code == 6:  # pylint: disable=no-member
                     raise err
+    if scanned:
+        sleep(delay)
+        notify("WiFi scan complete")
+    main()
 
 
 def rescan_cb(dev, res, _):
@@ -1050,8 +1059,17 @@ def get_selection(all_actions):
                 )
             )
         ]
-    if len(action) != 1:
+    if len(action) < 1:
         raise ValueError(f"Selection was ambiguous: '{str(sel.strip())}'")
+    if len(action) > 1:
+        # NM doesn't enforce unique connection IDs, so two saved
+        # connections (or two VPNs) can share the same get_id() and
+        # render as identical menu rows. Whoever picked that row had no
+        # way to tell the duplicates apart in the first place, so any
+        # match is as valid a choice as any other -- take the first
+        # rather than crashing the whole menu over a cosmetic name
+        # collision.
+        action = action[:1]
     return action[0]
 
 
@@ -1226,8 +1244,14 @@ def get_passphrase():
         )
         prompt = CONF.get("pinentry", "prompt", fallback="Password: ")
         pin = ""
+        # Every other configurable command here (dmenu_command,
+        # terminal, show_pass) is shlex.split() before subprocess.run --
+        # pinentry wasn't, so a config value with arguments (e.g.
+        # "pinentry-gnome3 --timeout=30") was passed as one literal
+        # executable name and crashed with FileNotFoundError instead of
+        # running.
         out = subprocess.run(
-            pinentry,
+            shlex.split(pinentry),
             capture_output=True,
             check=False,
             encoding=ENC,
@@ -1252,8 +1276,13 @@ def delete_connection():
     if not sel.strip():
         sys.exit()
     action = [i for i in conn_acts if str(i) == sel.rstrip("\n")]
-    if len(action) != 1:
+    if len(action) < 1:
         raise ValueError(f"Selection was ambiguous: {str(sel)}")
+    if len(action) > 1:
+        # Same duplicate-get_id() case as get_selection() above -- take
+        # the first rather than crashing; the user couldn't have told
+        # the duplicates apart in the menu either way.
+        action = action[:1]
     action[0]()
     LOOP.run()
 
@@ -1350,9 +1379,17 @@ def verify_conn(client, result, data):
     is an error.
 
     """
-    act_conn = client.add_and_activate_connection_finish(result)
-    conn = act_conn.get_connection()
+    conn = None
     try:
+        # add_and_activate_connection_finish() raises GLib.Error on the
+        # most common failure here -- a wrong password on a brand-new
+        # network, or the AP rejecting the profile -- which used to sit
+        # outside this try/except entirely, propagating uncaught out of
+        # a GLib async callback and skipping the `finally` below, so
+        # LOOP.quit() never ran and the whole menu hung after a failed
+        # connect attempt.
+        act_conn = client.add_and_activate_connection_finish(result)
+        conn = act_conn.get_connection()
         if not all(
             [
                 conn.verify(),
@@ -1364,11 +1401,13 @@ def verify_conn(client, result, data):
             raise GLib.Error
         notify(f"Added {conn.get_id()}")
     except GLib.Error:
-        try:
-            notify(f"Connection to {conn.get_id()} failed", urgency="critical")
+        # conn is still None here if add_and_activate_connection_finish
+        # itself failed, before any connection object existed to delete
+        # or name -- fall back to the profile that was being attempted.
+        label = conn.get_id() if conn is not None else data.get_id()
+        notify(f"Connection to {label} failed", urgency="critical")
+        if conn is not None:
             conn.delete_async(None, None, None)
-        except UnboundLocalError:
-            pass
     finally:
         LOOP.quit()
 
@@ -1394,8 +1433,12 @@ def create_ap_list(adapter, active_connections):
         reverse=True,
     )
     if adapter.get_mode() == getattr(NM, "80211Mode").AP:
-        # Remove active hotspot from AP list
-        aps_all.remove(active_ap)
+        # Remove active hotspot from AP list. active_ap can be None (or
+        # simply absent from aps_all) during the transient window while
+        # the hotspot is starting or stopping -- .remove() would raise
+        # ValueError uncaught and crash the whole menu on it.
+        if active_ap in aps_all:
+            aps_all.remove(active_ap)
         active_ap = None
     conns_cur = [
         i

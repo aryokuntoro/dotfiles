@@ -42,6 +42,23 @@ edid_hex() {
     '
 }
 
+# rofi is invoked with -markup-rows below, which runs Pango markup
+# parsing over every row's full text, not only what's wrapped in an
+# explicit <span> -- so any &/</> coming out of monitor_label() (every
+# call site feeds straight into a row or prompt string) has to be
+# escaped first. This matters because the EDID text it's built from is
+# free-form and comes straight off the wire: a malformed or generic
+# EDID -- exactly what this environment's HDMI-0 TV reports, having no
+# DDC/CI -- can contain a byte that would otherwise break Pango parsing
+# and corrupt or drop that row from the menu.
+pango_escape() {
+    local s="$1"
+    s="${s//&/&amp;}"
+    s="${s//</&lt;}"
+    s="${s//>/&gt;}"
+    printf '%s\n' "$s"
+}
+
 # Human-readable "Brand Model" string for an output, e.g. "HP Z24i".
 # Falls back to the raw PNP manufacturer id + product code, then to
 # the bare output name if there's no EDID at all (e.g. a VNC/virtual
@@ -55,14 +72,14 @@ monitor_label() {
     decoded=$(echo "$hex" | xxd -r -p 2>/dev/null | edid-decode - 2>/dev/null)
     name=$(echo "$decoded" | grep -oP "Display Product Name: '\K[^']+")
     if [ -n "$name" ]; then
-        echo "$name"
+        pango_escape "$name"
         return
     fi
 
     mfg=$(echo "$decoded" | grep -oP "Manufacturer: \K\S+")
     model=$(echo "$decoded" | grep -oP "Model: \K\S+")
     if [ -n "$mfg" ] || [ -n "$model" ]; then
-        echo "${mfg:-Unknown} ${model:-}"
+        pango_escape "${mfg:-Unknown} ${model:-}"
     else
         echo "$output"
     fi
@@ -228,7 +245,13 @@ apply() {
     # the new one so betterlockscreen doesn't show a stretched/stale
     # image. Backgrounded since it takes ~10s.
     if [ -f ~/.config/i3/current_wallpaper ] && [ -f "$(cat ~/.config/i3/current_wallpaper)" ]; then
-        betterlockscreen -u "$(cat ~/.config/i3/current_wallpaper)" >/dev/null 2>&1 &
+        # 9>&- so this backgrounded job doesn't inherit the script's own
+        # single-instance lock (see the flock near the bottom of this
+        # file) -- otherwise the lock would stay held for the ~10s this
+        # takes even after the interactive menu session has ended and
+        # the script itself has exited, blocking a second invocation
+        # that should be free to open.
+        betterlockscreen -u "$(cat ~/.config/i3/current_wallpaper)" >/dev/null 2>&1 9>&- &
     fi
 }
 
@@ -447,8 +470,16 @@ set_dpi() {
         [ -f "$ini" ] || continue
         if grep -qE '^gtk-xft-dpi[[:space:]]*=' "$ini"; then
             sed -i -E "s/^gtk-xft-dpi[[:space:]]*=.*/gtk-xft-dpi=$gtk_dpi/" "$ini"
-        else
+        elif grep -q '^\[Settings\]' "$ini"; then
             sed -i "/^\[Settings\]/a gtk-xft-dpi=$gtk_dpi" "$ini"
+        else
+            # No [Settings] header for `sed -i ... a` to anchor on -- a
+            # minimal/freshly-generated settings.ini, or one from a GTK
+            # version that never emitted the header, made this whole
+            # branch a silent no-op: no error, no notification, and GTK
+            # apps stuck at 96 DPI forever after a scale change. Add the
+            # section outright instead of assuming it's already there.
+            printf '[Settings]\ngtk-xft-dpi=%s\n' "$gtk_dpi" >> "$ini"
         fi
     done
 
@@ -681,7 +712,13 @@ single_display_menu() {
     outputs=$(connected_outputs)
     options=""
     while IFS= read -r o; do
-        options="${options}$(monitor_label "$o") ($o)\n"
+        # <<< always feeds at least one line, even an empty one, when
+        # $outputs itself is empty -- unguarded, that produced a bogus
+        # blank menu row instead of an empty list in the (rare) zero-
+        # connected-outputs state. mirror_all() and extend_menu()
+        # already guard the same pattern; this brings the other loops
+        # in line with them.
+        [ -n "$o" ] && options="${options}$(monitor_label "$o") ($o)\n"
     done <<< "$outputs"
     options="${options}$divider\n$goback\nExit"
 
@@ -718,7 +755,9 @@ show_menu() {
     outputs=$(connected_outputs)
 
     while IFS= read -r o; do
-        entries="${entries}$(status_line "$o")\n"
+        # See single_display_menu()'s matching guard: <<< always feeds
+        # at least one line even when $outputs is empty.
+        [ -n "$o" ] && entries="${entries}$(status_line "$o")\n"
     done <<< "$outputs"
 
     local n
@@ -802,6 +841,23 @@ show_menu() {
 # it opens a menu. The test suite sources it, and a file that drives a
 # real X server the moment it is read cannot be tested at all.
 [ "${BASH_SOURCE[0]}" != "$0" ] && return 0
+
+# Serializes whole invocations of this script against each other -- a
+# double-press of the monitor keybinding before the first rofi window
+# paints would otherwise let two instances walk the menu concurrently,
+# both eventually reaching apply()'s `autorandr --save`: a read/write
+# race on the same "default" profile that the comments there already
+# call out *within* one invocation, but nothing previously guarded
+# *across* invocations. Held for the whole menu session via this fd
+# staying open for the script's lifetime, not just around the save
+# itself, since the real race is "two sessions changing the layout at
+# once," not only the final write.
+lockfile="/tmp/rofi-monitor.lock"
+exec 9>"$lockfile"
+if ! flock -n 9; then
+    notify-send "  Monitor" "rofi-monitor.sh is already open"
+    exit 1
+fi
 
 # nav_state is cleared before each menu runs, so a menu that sets no new
 # destination simply ends the loop and the script.

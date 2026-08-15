@@ -13,9 +13,16 @@ fi
 
 # Create display entries with the image itself as the rofi icon, so
 # the picker shows an actual thumbnail per wallpaper instead of plain text.
+# The basename -> full path mapping is kept here rather than re-`find`-ing
+# by name after selection: that treated the selected name as a shell glob
+# (breaking on filenames containing *, ?, or [...]), and arbitrarily
+# picked whichever match `find`'s traversal order happened to hit first
+# when two wallpapers in different subdirectories shared a basename.
+declare -A wall_paths
 entries=""
 while IFS= read -r img; do
     name=$(basename "$img")
+    wall_paths["$name"]="$img"
     entries+="$name\x00icon\x1f$img\n"
 done <<< "$images"
 
@@ -24,9 +31,8 @@ selected=$(echo -e "$entries" | rofi -dmenu -i -p "Wallpaper:" -show-icons \
     -theme ~/.config/rofi/themes/wallpaper.rasi -no-config)
 
 if [ -n "$selected" ]; then
-    # Find full path
-    wallpaper=$(find "$wall_dir" -name "$selected" -type f | head -1)
-    
+    wallpaper="${wall_paths[$selected]}"
+
     if [ -n "$wallpaper" ]; then
         # Set wallpaper
         feh --bg-scale "$wallpaper"

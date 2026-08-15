@@ -4,6 +4,12 @@
 # exec_always in quick succession) -- without this, two overlapping
 # runs can each pass the kill-and-wait check below before either has
 # actually launched polybar, then both launch it, doubling every bar.
+#
+# ~/.cache isn't guaranteed to exist (a fresh account before anything
+# else has created it, and install.sh doesn't) -- without mkdir -p, the
+# exec redirection below would fail outright and this whole script
+# would exit immediately, silently, with polybar never launched.
+mkdir -p "$HOME/.cache"
 exec 9>"$HOME/.cache/polybar-launch.lock"
 flock 9
 

@@ -133,7 +133,16 @@ else
         # both fields are actually numeric before doing arithmetic on them.
         if ! [[ "$current" =~ ^[0-9]+$ && "$max" =~ ^[0-9]+$ ]]; then
             touch "$UNSUPPORTED_CACHE"
-            return 1
+            # Print the same cached/default value the xrandr-brightness
+            # branch above would use, rather than nothing -- otherwise
+            # this one poll renders a blank bar (empty $percentage below)
+            # for the ~2s before the *next* poll picks up the
+            # UNSUPPORTED_CACHE file just touched and switches branches.
+            local fallback_pct
+            fallback_pct=$(cat "$HOME/.cache/xrandr-brightness" 2>/dev/null)
+            [[ "$fallback_pct" =~ ^[0-9]+$ ]] || fallback_pct=100
+            echo "$fallback_pct"
+            return 0
         fi
         echo $((current * 100 / max))
     }

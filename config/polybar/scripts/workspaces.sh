@@ -109,6 +109,14 @@ print(''.join(parts))
 "
 }
 
+# Without this, killing this script directly (not through a path that
+# also reaches its `i3-msg -t subscribe` child, e.g. a bare `pkill -f
+# workspaces.sh`) leaves that child orphaned, holding an open i3 IPC
+# subscription with nothing left to feed. pkill -P $$ reaches every
+# direct child of this script -- i3-msg and the while loop's subshell
+# below -- regardless of which one this process happens to be at exit.
+trap 'pkill -P $$ 2>/dev/null' EXIT INT TERM
+
 render
 
 i3-msg -t subscribe -m '["workspace"]' | while read -r _; do

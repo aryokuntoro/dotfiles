@@ -68,7 +68,11 @@ scan_on() {
 # Toggles scanning state
 toggle_scan() {
     if scan_on; then
-        kill $(pgrep -f "bluetoothctl --timeout 5 scan on")
+        # pkill rather than `kill $(pgrep -f ...)`: if the 5s --timeout
+        # scan had already self-terminated by the time this runs, pgrep
+        # matches nothing and `kill` with zero arguments prints a usage
+        # error to stderr instead of just being a no-op.
+        pkill -f "bluetoothctl --timeout 5 scan on" 2>/dev/null
         bluetoothctl scan off
         show_menu
     else
@@ -135,10 +139,10 @@ device_connected() {
 # Toggles device connection
 toggle_connection() {
     if device_connected "$1"; then
-        bluetoothctl disconnect "$1"
+        bluetoothctl disconnect "$1" || notify-send "  Bluetooth" "Failed to disconnect $1"
         device_menu "$device"
     else
-        bluetoothctl connect "$1"
+        bluetoothctl connect "$1" || notify-send "  Bluetooth" "Failed to connect to $1"
         device_menu "$device"
     fi
 }
@@ -158,10 +162,10 @@ device_paired() {
 # Toggles device paired state
 toggle_paired() {
     if device_paired "$1"; then
-        bluetoothctl remove "$1"
+        bluetoothctl remove "$1" || notify-send "  Bluetooth" "Failed to remove $1"
         device_menu "$device"
     else
-        bluetoothctl pair "$1"
+        bluetoothctl pair "$1" || notify-send "  Bluetooth" "Pairing with $1 failed or was rejected"
         device_menu "$device"
     fi
 }
@@ -181,10 +185,10 @@ device_trusted() {
 # Toggles device connection
 toggle_trust() {
     if device_trusted "$1"; then
-        bluetoothctl untrust "$1"
+        bluetoothctl untrust "$1" || notify-send "  Bluetooth" "Failed to untrust $1"
         device_menu "$device"
     else
-        bluetoothctl trust "$1"
+        bluetoothctl trust "$1" || notify-send "  Bluetooth" "Failed to trust $1"
         device_menu "$device"
     fi
 }
@@ -338,7 +342,21 @@ show_menu() {
         *)
             # Strip the " (NN%)" battery suffix added in the device list, if present
             chosen_name=$(echo "$chosen" | sed -E 's/ \([0-9]+%\)$//')
-            device=$(bluetoothctl devices | grep -F "$chosen_name")
+            # grep -F is an unanchored substring match against the whole
+            # "Device MAC Name" line -- a device name that's a prefix of
+            # another paired device's name (e.g. "iPhone" vs "iPhone
+            # Pro") matched both, and device_menu() below only ever
+            # looks at the *first* line of a multi-line $device, silently
+            # opening the wrong device's submenu. Compared here the same
+            # way device_menu() itself extracts device_name (cut -f 3-),
+            # for an exact match instead.
+            device=""
+            while IFS= read -r line; do
+                if [ "$(echo "$line" | cut -d ' ' -f 3-)" = "$chosen_name" ]; then
+                    device="$line"
+                    break
+                fi
+            done < <(bluetoothctl devices | grep Device)
             # Open a submenu if a device is selected
             if [[ $device ]]; then device_menu "$device"; fi
             ;;

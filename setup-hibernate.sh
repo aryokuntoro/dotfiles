@@ -36,29 +36,48 @@ ROOT_UUID=$(findmnt -no UUID /)
 
 echo "==> Root filesystem: $ROOT_FSTYPE, RAM: ${RAM_GIB}GiB, swapfile size: ${SIZE_GIB}GiB"
 
-# Piping df into tail loses df's own exit status -- tail still exits 0
-# on empty input, so a failed `df /swap` (the normal case on a first
-# run, before the @swap subvolume below exists yet) never fell through
-# to the `/` fallback and left avail_kib empty, which the free-space
-# check below then read as 0 and aborted on every fresh install.
-avail_kib=$(df --output=avail /swap 2>/dev/null | tail -1)
-[ -n "$avail_kib" ] || avail_kib=$(df --output=avail / | tail -1)
-if [ "$((avail_kib / 1024 / 1024))" -lt "$SIZE_GIB" ]; then
-    echo "Not enough free space for a ${SIZE_GIB}GiB swapfile." >&2
-    exit 1
-fi
-
 if swapon --show=NAME --noheadings | grep -qx "$SWAPFILE"; then
     echo "==> $SWAPFILE already active, skipping creation"
 else
+    # Checked here, not before the "already active" check above: once
+    # the swapfile exists it occupies SIZE_GIB of the pool's free space
+    # itself, so re-running after a successful setup would find less
+    # free space than at first run and abort with a false "not enough
+    # space" even though there's nothing left to create.
+    #
+    # Piping df into tail loses df's own exit status -- tail still
+    # exits 0 on empty input, so a failed `df /swap` (the normal case
+    # on a first run, before the @swap subvolume below exists yet)
+    # never fell through to the `/` fallback and left avail_kib empty,
+    # which would then be read as 0 and abort on every fresh install.
+    avail_kib=$(df --output=avail /swap 2>/dev/null | tail -1)
+    [ -n "$avail_kib" ] || avail_kib=$(df --output=avail / | tail -1)
+    if [ "$((avail_kib / 1024 / 1024))" -lt "$SIZE_GIB" ]; then
+        echo "Not enough free space for a ${SIZE_GIB}GiB swapfile." >&2
+        exit 1
+    fi
+
     if [ "$ROOT_FSTYPE" = btrfs ]; then
         echo "==> Creating dedicated @swap subvolume (never snapshotted)"
-        if ! btrfs subvolume show /swap >/dev/null 2>&1; then
-            btrfs subvolume create /swap
-        fi
         grep -q "subvol=/@swap" /etc/fstab || \
             echo "UUID=$ROOT_UUID  /swap  btrfs  rw,relatime,ssd,discard=async,space_cache=v2,subvol=/@swap  0 0" >> /etc/fstab
-        mountpoint -q /swap || mount /swap
+        if ! mountpoint -q /swap; then
+            mkdir -p /swap
+            # @swap must sit at the top level of the btrfs volume,
+            # alongside @/@home/@pkg/@log (subvolid=5) -- `btrfs
+            # subvolume create /swap` while / is mounted as the @
+            # subvolume would nest it at @/swap instead, a path the
+            # fstab entry above (subvol=/@swap) can never find, so
+            # `mount /swap` below would fail every time. Mount the raw
+            # top-level volume just long enough to create @swap there.
+            (
+                top_mnt=$(mktemp -d)
+                trap 'umount "$top_mnt" 2>/dev/null; rmdir "$top_mnt" 2>/dev/null' EXIT
+                mount -U "$ROOT_UUID" -o subvolid=5 "$top_mnt"
+                [ -d "$top_mnt/@swap" ] || btrfs subvolume create "$top_mnt/@swap"
+            )
+            mount /swap
+        fi
 
         echo "==> Creating NOCOW swapfile (fallocate doesn't work reliably on btrfs)"
         rm -f "$SWAPFILE"

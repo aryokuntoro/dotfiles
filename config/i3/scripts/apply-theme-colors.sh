@@ -46,6 +46,24 @@ aqua=$(get_color aqua)
 orange=$(get_color orange)
 [ -z "$orange" ] && orange="$accent2"
 
+# get_color() silently yields an empty string for any key missing from
+# a malformed/incomplete .rasi file, and every writer below (i3, dunst,
+# polybar, Xresources, kitty, Qt) would happily template that in as a
+# blank color value with no warning -- degrading every themed app at
+# once instead of failing loudly on the one broken theme file. Checked
+# here, once, before any of those writers run; the keys with their own
+# fallback chain above (selected/purple/aqua/orange) are excluded since
+# an empty get_color() result for those is expected, not an error.
+required_colors=(bg bg_alt bg_hover fg fg_alt accent accent2 red green yellow blue urgent)
+missing=()
+for name in "${required_colors[@]}"; do
+    [ -n "${!name}" ] || missing+=("$name")
+done
+if [ "${#missing[@]}" -gt 0 ]; then
+    printf 'Theme file %s is missing required color(s): %s\n' "$theme_path" "${missing[*]}" >&2
+    exit 1
+fi
+
 # ── GTK theme name lookup ─────────────────────────────────────────
 # Single source of truth for theme_file -> GTK theme package name,
 # shared by theme-switch.sh and colorreload.sh.
@@ -295,34 +313,45 @@ awk -v block="$new_block" '
 # ── Dunst ───────────────────────────────────────────────────────
 dunstrc="$HOME/.config/dunst/dunstrc"
 
-sed -i "0,/frame_color = /s/frame_color = .*/frame_color = \"$accent\"/" "$dunstrc"
-sed -i "0,/background = /s/background = .*/background = \"$bg\"/" "$dunstrc"
-sed -i "0,/foreground = /s/foreground = .*/foreground = \"$fg\"/" "$dunstrc"
-
-sed -i "/\[urgency_low\]/,/^\[/ s/background = .*/background = \"$bg\"/" "$dunstrc"
-sed -i "/\[urgency_low\]/,/^\[/ s/foreground = .*/foreground = \"$fg\"/" "$dunstrc"
-sed -i "/\[urgency_low\]/,/^\[/ s/frame_color = .*/frame_color = \"$blue\"/" "$dunstrc"
-
-sed -i "/\[urgency_normal\]/,/^\[/ s/background = .*/background = \"$bg\"/" "$dunstrc"
-sed -i "/\[urgency_normal\]/,/^\[/ s/foreground = .*/foreground = \"$fg\"/" "$dunstrc"
-sed -i "/\[urgency_normal\]/,/^\[/ s/frame_color = .*/frame_color = \"$accent\"/" "$dunstrc"
-
-sed -i "/\[urgency_critical\]/,/^\[/ s/background = .*/background = \"$urgent\"/" "$dunstrc"
-sed -i "/\[urgency_critical\]/,/^\[/ s/foreground = .*/foreground = \"$bg\"/" "$dunstrc"
-sed -i "/\[urgency_critical\]/,/^\[/ s/frame_color = .*/frame_color = \"$urgent\"/" "$dunstrc"
+# One sed -i invocation, not twelve: each -i call writes a temp file
+# and renames it into place on its own, so a kill between separate
+# calls could leave dunstrc with some sections already re-themed and
+# others still on the old colors. Passing every expression to a single
+# invocation makes the whole set land in one write+rename -- and, as a
+# side benefit, replaces twelve full-file rewrites with one.
+sed -i \
+    -e "0,/frame_color = /s/frame_color = .*/frame_color = \"$accent\"/" \
+    -e "0,/background = /s/background = .*/background = \"$bg\"/" \
+    -e "0,/foreground = /s/foreground = .*/foreground = \"$fg\"/" \
+    -e "/\[urgency_low\]/,/^\[/ s/background = .*/background = \"$bg\"/" \
+    -e "/\[urgency_low\]/,/^\[/ s/foreground = .*/foreground = \"$fg\"/" \
+    -e "/\[urgency_low\]/,/^\[/ s/frame_color = .*/frame_color = \"$blue\"/" \
+    -e "/\[urgency_normal\]/,/^\[/ s/background = .*/background = \"$bg\"/" \
+    -e "/\[urgency_normal\]/,/^\[/ s/foreground = .*/foreground = \"$fg\"/" \
+    -e "/\[urgency_normal\]/,/^\[/ s/frame_color = .*/frame_color = \"$accent\"/" \
+    -e "/\[urgency_critical\]/,/^\[/ s/background = .*/background = \"$urgent\"/" \
+    -e "/\[urgency_critical\]/,/^\[/ s/foreground = .*/foreground = \"$bg\"/" \
+    -e "/\[urgency_critical\]/,/^\[/ s/frame_color = .*/frame_color = \"$urgent\"/" \
+    "$dunstrc"
 
 # ── Polybar ─────────────────────────────────────────────────────
 polybar_ini="$HOME/.config/polybar/config.ini"
 
-sed -i "/\[colors\]/,/^\[/ s/^background = .*/background = $bg/" "$polybar_ini"
-sed -i "/\[colors\]/,/^\[/ s/^background-alt = .*/background-alt = $bg_alt/" "$polybar_ini"
-sed -i "/\[colors\]/,/^\[/ s/^foreground = .*/foreground = $fg/" "$polybar_ini"
-sed -i "/\[colors\]/,/^\[/ s/^foreground-alt = .*/foreground-alt = $fg_alt/" "$polybar_ini"
-sed -i "/\[colors\]/,/^\[/ s/^primary = .*/primary = $accent/" "$polybar_ini"
-sed -i "/\[colors\]/,/^\[/ s/^secondary = .*/secondary = $accent2/" "$polybar_ini"
-sed -i "/\[colors\]/,/^\[/ s/^alert = .*/alert = $red/" "$polybar_ini"
-sed -i "/\[colors\]/,/^\[/ s/^disabled = .*/disabled = $fg_alt/" "$polybar_ini"
-sed -i "/\[colors\]/,/^\[/ s/^accent = .*/accent = $accent/" "$polybar_ini"
+# Batched into one sed -i invocation for the same reason as dunstrc
+# above: a single write+rename for the whole [colors] block instead of
+# nine, so a kill mid-update can't leave polybar.ini with some keys
+# re-themed and others stale.
+sed -i \
+    -e "/\[colors\]/,/^\[/ s/^background = .*/background = $bg/" \
+    -e "/\[colors\]/,/^\[/ s/^background-alt = .*/background-alt = $bg_alt/" \
+    -e "/\[colors\]/,/^\[/ s/^foreground = .*/foreground = $fg/" \
+    -e "/\[colors\]/,/^\[/ s/^foreground-alt = .*/foreground-alt = $fg_alt/" \
+    -e "/\[colors\]/,/^\[/ s/^primary = .*/primary = $accent/" \
+    -e "/\[colors\]/,/^\[/ s/^secondary = .*/secondary = $accent2/" \
+    -e "/\[colors\]/,/^\[/ s/^alert = .*/alert = $red/" \
+    -e "/\[colors\]/,/^\[/ s/^disabled = .*/disabled = $fg_alt/" \
+    -e "/\[colors\]/,/^\[/ s/^accent = .*/accent = $accent/" \
+    "$polybar_ini"
 
 # ── Rofi shared palette (Bluetooth/NetManagerDM/Android/etc menus) ──
 # These special-purpose rofi themes @import shared.rasi instead of
@@ -370,10 +399,17 @@ awk -v strip="$strip_marker" '
     !skip { print }
 ' "$theme_path" > "$theme_path.tmp"
 if [ -n "$accent_overridden" ]; then
+    # $theme_path is also this script's own get_color() read source on
+    # every future run (see the comment above), so it can never be left
+    # truncated -- built into a second temp file first and only then
+    # renamed into place, same as the plain mv below, so a kill mid-
+    # write leaves a stray .tmp2 file instead of a half-written live
+    # theme.
     {
         cat "$theme_path.tmp"
         printf '\n%s\n* { accent: %s; }\n/* ACCENT-OVERRIDE-END */\n' "$strip_marker" "$accent"
-    } > "$theme_path"
+    } > "$theme_path.tmp2"
+    mv "$theme_path.tmp2" "$theme_path"
     rm -f "$theme_path.tmp"
 else
     mv "$theme_path.tmp" "$theme_path"

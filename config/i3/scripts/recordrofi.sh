@@ -19,6 +19,28 @@ save_rec() {
 }
 theme="$HOME/.config/rofi/themes/current.rasi"
 
+# Serializes the whole "decide what to record" flow below (every rofi
+# prompt from resolution down to GIF settings) against a second
+# invocation of this same script -- e.g. a double-press of the
+# recording keybinding before the first rofi window has even painted.
+# Without this, both instances could pass the pidfile check above
+# seeing nothing recording yet, both walk through their own prompt
+# sequence, and whichever reaches `rm -f "$pidfile"` + save_rec last
+# would silently erase the other's pid entry, orphaning that ffmpeg
+# process with no way to stop it from the menu.
+#
+# Released explicitly (not left to process exit) right before the
+# case statement backgrounds ffmpeg: fd 9 must not be inherited into
+# the recording process, or the lock would stay held for the entire
+# recording instead of just this decision window, and a later "Stop
+# Recording" check would block until ffmpeg exited on its own.
+lockfile="/tmp/recordrofi.lock"
+exec 9>"$lockfile"
+if ! flock -n 9; then
+    notify-send "  Record" "Another recordrofi.sh is already in progress"
+    exit 1
+fi
+
 # ── Hardware encoder detection ──────────────────────────────────
 # Software x264 encodes every frame on the CPU -- fine on a fast one,
 # but a high-end box with real encode silicon sitting unused is
@@ -110,12 +132,29 @@ if [ -f "$pidfile" ]; then
     choice=$(echo -e "  Stop Recording\n  Cancel" | rofi -dmenu -i -p "Recording Active:" \
         -theme "$theme" -no-config -lines 2)
     if [[ "$choice" == *"Stop"* ]]; then
+        saved_pids=()
         saved_files=()
         while IFS=: read -r rec_pid rec_file; do
             kill "$rec_pid" 2>/dev/null
+            saved_pids+=("$rec_pid")
             saved_files+=("$rec_file")
         done < "$pidfile"
         rm -f "$pidfile"
+
+        # SIGTERM only asks ffmpeg to stop -- it still needs a moment to
+        # flush and finalize each output (write the moov atom, close the
+        # container). Notifying "Saved" immediately after kill claimed
+        # the file was ready before ffmpeg had actually finished writing
+        # it. Poll briefly instead of trusting kill's return alone; these
+        # pids belong to a different (already-exited) script invocation,
+        # so `wait` can't be used here.
+        for rec_pid in "${saved_pids[@]}"; do
+            for _ in $(seq 1 50); do
+                kill -0 "$rec_pid" 2>/dev/null || break
+                sleep 0.1
+            done
+        done
+
         joined=$(printf '%s, ' "${saved_files[@]}")
         notify-send "  Recording" "Stopped. Saved: ${joined%, }"
     fi
@@ -129,8 +168,16 @@ choice=$(echo -e "$options" | rofi -dmenu -i -p "Record:" \
     -theme "$theme" -no-config -lines 8)
 [ -z "$choice" ] && exit 0
 
-# Get screen resolution
-res=$(xrandr --query | grep ' connected' | grep -o '[0-9]*x[0-9]*' | head -1)
+# Get screen resolution. The "Full Screen" arms below capture with
+# `-i "$DISPLAY"` and no offset, i.e. the whole X virtual screen across
+# every monitor combined -- so this has to be that combined size, not
+# one output's mode. Picking the first ` connected` output's resolution
+# (the previous approach) under-sized -video_size on any multi-monitor
+# layout (this machine included, with a TV as a second display),
+# silently cropping the capture to just that one monitor. `xrandr
+# --query`'s own "Screen 0: ... current WxH ..." line is the actual
+# combined virtual screen size ffmpeg is about to grab.
+res=$(xrandr --query | awk '/^Screen 0:/{gsub(",","",$8); gsub(",","",$10); print $8 "x" $10; exit}')
 
 # ── Video quality/resolution/framerate prompts (video modes only) ──
 scale_vf=""
@@ -307,11 +354,20 @@ if [[ "$choice" == *GIF* ]]; then
     gif_fps="$gif_fps_choice"
 fi
 
-# Guaranteed not to exist yet at this point (the pidfile check above
-# would have exited early otherwise) -- cleared defensively anyway so a
-# leftover from a process that crashed mid-recording without cleaning up
-# can never make save_rec's append land in a stale file.
+# Guaranteed not to exist yet at this point -- the pidfile check above
+# would have exited early otherwise, and the flock held since the top
+# of the script means no second invocation could have raced past that
+# check and created one in the meantime either. Cleared defensively
+# anyway so a leftover from a process that crashed mid-recording
+# without cleaning up can never make save_rec's append land in a stale
+# file.
 rm -f "$pidfile"
+
+# Release the lock now, before backgrounding ffmpeg below: fd 9 would
+# otherwise be inherited into every `&`-launched ffmpeg process, and
+# whichever one runs longest would keep the lock held for its entire
+# recording instead of just this decision window.
+exec 9>&-
 
 case "$choice" in
     *Full\ Screen\ Video*)
